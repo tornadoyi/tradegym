@@ -1,5 +1,6 @@
-from typing import Optional
-from .object import TObject
+from typing import Optional, Dict
+from tradegym.engine.core import TObject
+from .commission import Commission, FreeCommission
 
 
 __all__ = ["Contract"]
@@ -15,7 +16,7 @@ class Contract(TObject):
         size: int,
         margin_rate: float,
         tick_size: float,
-        commission: Optional["Commission"] = None,
+        commission: Optional[Commission] = None,
     ):
         self._code = code
         self._exchange = exchange
@@ -23,7 +24,7 @@ class Contract(TObject):
         self._size = size
         self._margin_rate = margin_rate
         self._tick_size = tick_size
-        self._commission = commission
+        self._commission = FreeCommission() if commission is None else commission
     
     @property
     def code(self) -> str:
@@ -50,7 +51,7 @@ class Contract(TObject):
         return self._tick_size
     
     @property
-    def commission(self) -> Optional["Commission"]:
+    def commission(self) -> Commission:
         return self._commission
 
     def to_dict(self) -> dict:
@@ -59,5 +60,14 @@ class Contract(TObject):
             "exchange": self.exchange,
             "commodity": self.commodity,
             "size": self.size,
-            "margin_rate": self.margin_rate
+            "margin_rate": self.margin_rate,
+            "commission": self._commission.to_dict()
         }
+    
+    def from_dict(cls, data: dict) -> "Contract":
+        def make(commission: Optional[Dict] = None, **kwargs):
+            return super().from_dict(
+                commission=(None if commission is None else Commission.from_dict(commission))
+                **kwargs, 
+            )
+        return make(**data)

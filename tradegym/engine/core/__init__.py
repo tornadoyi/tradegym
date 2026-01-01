@@ -1,2 +1,2 @@
+from .clock import *
 from .object import *
-from .contract import *

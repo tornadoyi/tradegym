@@ -1,6 +1,7 @@
 from typing import Optional, Sequence
 from datetime import datetime
-from tradegym.engine.core import TObject, Contract
+from tradegym.engine.core import TObject
+from tradegym.engine.contract import Contract
 
 
 __all__ = ["Position"]

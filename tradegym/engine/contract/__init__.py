@@ -1,2 +1,2 @@
 from .commission import *
-from .rule import *
+from .contract import *
