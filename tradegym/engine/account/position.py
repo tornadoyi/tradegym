@@ -1,13 +1,13 @@
 from typing import Optional, Sequence
 from datetime import datetime
-from tradegym.engine.core import TObject
+from tradegym.engine.core import ISerializer
 from tradegym.engine.contract import Contract
 
 
 __all__ = ["Position"]
 
 
-class Position(TObject):
+class Position(ISerializer):
     def __init__(
         self,
         contract_code: str,

@@ -1,30 +1,37 @@
 from typing import Optional, Sequence
-from .core import TObject, Clock
+from .core import PluginManager
 from .account import Account
-from .contract import Contract
+from .contract import ContractManager
+from .kline import KLineManager
+from .utility import Clock
 
 
 __all__ = ["TradeEngine"]
 
 
 
-class TradeEngine(TObject):
+class TradeEngine(PluginManager):
     def __init__(
         self,
         account: Account,
-        contracts: Sequence[Contract],
+        contract: ContractManager,
+        kline: KLineManager,
         clock: Optional[Clock] = None
     ):
-        self._account = account
-        self._contracts = contracts
-
-        # clock
-        self._clock = Clock() if clock is None else clock
+        self.add_plugins([p for p in [account, contract, kline, clock] if p is not None])
 
     @property
     def clock(self) -> Clock:
-        return self._clock
+        return self.get_or_create_plugin('clock')
 
     @property
     def account(self) -> Account:
-        return self._account
+        return self.get_or_create_plugin('account')
+    
+    @property
+    def contract(self) -> ContractManager:
+        return self.get_or_create_plugin('contract')
+    
+    @property
+    def kline(self) -> KLineManager:
+        return self.get_or_create_plugin('kline')

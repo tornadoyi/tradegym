@@ -1,12 +1,12 @@
 from typing import Optional, Sequence, Union
-from tradegym.engine.core import TObject
+from tradegym.engine.core import ISerializer
 from .position import Position
 
 
 __all__ = ["Portfolio"]
 
 
-class Portfolio(TObject):
+class Portfolio(ISerializer):
     def __init__(self, positions: Optional[Sequence[Position]] = None):
         self._positions = [] if positions is None else positions
         self._closed_positions = [p for p in positions if p.quantity == 0]

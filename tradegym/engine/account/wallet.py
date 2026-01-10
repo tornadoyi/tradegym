@@ -1,19 +1,17 @@
 from typing import Optional
-from tradegym.engine.core import TObject
+from tradegym.engine.core import ISerializer
 
 
 __all__ = ["Wallet"]
 
 
-class Wallet(TObject):
+class Wallet(ISerializer):
     def __init__(
         self,
         available_cash: float,
         currency: str = 'CNY',
-        margin_used: float = 0,
     ):
         self._available_cash = available_cash
-        self._margin_used = margin_used
         self._currency = currency
 
     @property
@@ -23,10 +21,7 @@ class Wallet(TObject):
     @property
     def currency(self) -> Optional[str]:
         return self._currency
-    
-    @property
-    def margin_used(self) -> float:
-        return self._margin_used
+
 
     
 

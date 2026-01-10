@@ -1,21 +1,24 @@
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, Sequence
 from datetime import datetime, timedelta
-from .object import TObject
+from tradegym.engine.core import Plugin
 
 
 __all__ = ['Clock']
 
 
 
-class Clock(TObject):
-    def __init__(self, now: datetime):
+class Clock(Plugin):
+    Name: str = 'clock'
+    Depends: Sequence[str] = ['home']
+
+    def __init__(self, now: Optional[datetime] = None):
         self._now = now
         self._tick_callbacks = set()
 
     @property
     def now(self) -> datetime:
         return self._now
-
+    
     def tick(self, delta: timedelta) -> None:
         self._now += delta
         for cb in self._tick_callbacks:
@@ -30,6 +33,11 @@ class Clock(TObject):
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Clock":
         return cls(datetime.fromisoformat(data['now']))
-
+    
     def to_dict(self) -> Dict[str, Any]:
-        return {'now': self.now.isoformat()}
+        d = super().to_dict()
+        d.update(now=self.now.isoformat())
+        return d
+    
+    
+Plugin.register(Clock)

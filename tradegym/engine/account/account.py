@@ -1,34 +1,40 @@
-from typing import Optional
-from tradegym.engine.core import TObject
+from typing import Optional, Sequence
+from tradegym.engine.core import Plugin
+from .portfolio import Portfolio
+from .wallet import Wallet
 
 
 __all__ = ["Account"]
 
 
-class Account(TObject):
+class Account(Plugin):
+    Name: str = "account"
+    Depends: Sequence[str] = []
+
     def __init__(
         self,
-        available_cash: float,
-        currency: str = 'CNY',
-        margin_used: float = 0,
+        wallet: Optional[Wallet] = None,
+        portfolio: Optional[Portfolio] = None,
+  
     ):
-        self._available_cash = available_cash
-        self._margin_used = margin_used
-        self._currency = currency
-
-    @property
-    def available_cash(self) -> float:
-        return self._available_cash
+        self._wallet = Wallet(0) if wallet is None else wallet
+        self._portfolio = Portfolio() if portfolio is None else portfolio
     
     @property
-    def currency(self) -> Optional[str]:
-        return self._currency
+    def wallet(self) -> Wallet:
+        return self._wallet
     
     @property
-    def margin_used(self) -> float:
-        return self._margin_used
-
+    def portfolio(self) -> Portfolio:
+        return self._portfolio
     
-
-
-
+    def to_dict(self):
+        d = super().to_dict()
+        d.update(
+            wallet = self.wallet.to_dict(),
+            portfolio = self.portfolio.to_dict()
+        )
+        return d
+    
+   
+Plugin.register(Account)

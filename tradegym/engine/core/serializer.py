@@ -3,10 +3,10 @@ from abc import abstractmethod, ABC
 
 
 
-__all__ = ["TObject"]
+__all__ = ["ISerializer"]
 
 
-class TObject(ABC):
+class ISerializer(ABC):
     @classmethod
     def from_dict(cls, data: Union[Dict, Sequence]) -> str:
         if isinstance(data, (tuple, list)):
@@ -19,5 +19,5 @@ class TObject(ABC):
         pass
 
 
-    def copy(self) -> "TObject":
+    def copy(self) -> "ISerializer":
         return type(self).from_dict(self.to_dict())
