@@ -8,6 +8,9 @@ __all__ = ["KLineManager"]
 
 
 class KLineManager(Plugin):
+    Name: str = "kline"
+    Depends: Sequence[str] = []
+
     def __init__(
         self,
         klines: Optional[Sequence[KLine]] = None

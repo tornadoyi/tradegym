@@ -1,62 +1,61 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, List, Dict
+from dataclasses import dataclass
 from datetime import datetime
+import secrets
 from tradegym.engine.core import ISerializer
 from tradegym.engine.contract import Contract
 
 
-__all__ = ["Position"]
+__all__ = ["Position", "PositionLog"]
 
 
 class Position(ISerializer):
     def __init__(
         self,
-        contract_code: str,
-        position_type: str,
-        open_price: float,
-        open_quantity: int,
-        open_commission: float,
-        open_date: datetime,
-
-        quantity: Optional[int] = None,
-        commission: Optional[float] = None,
+        code: str,
+        side: str,
+        price: float,
+        volume: int,
+        commission: float,
+        date: datetime,
+        id: Optional[str] = None,
     ):
-        assert position_type.lower() in ["long", "short"], f"invalid position_type '{position_type}', must be long or short"
-        self._contract_code = contract_code
+        assert side.lower() in ["long", "short"], f"invalid side '{side}', must be long or short"
+        self._id = secrets.token_urlsafe(8) if id is None else id
+        self._code = code
         self._contract: Optional[Contract] = None
-        self._position_type = position_type.lower()
+        self._side = side.lower()
 
-        self._open_price = open_price
-        self._open_quantity = open_quantity
-        self._open_commission = open_commission
-        self._open_date = open_date
+        self._open_price = price
+        self._open_volume = volume
+        self._open_commission = commission
+        self._open_date = date
 
-        self._quantity = self._open_quantity if quantity is None else quantity
-        self._commission = self._open_commission if commission is None else commission
-        self._closes: Sequence[Close] = []
+        self._closes: List[Close] = []
 
     @property
-    def contract_code(self) -> str:
-        return self._contract_code
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def code(self) -> str:
+        return self._code
     
     @property
     def contract(self) -> Optional[Contract]:
         return self._contract
     
     @property
-    def exchange_id(self) -> str:
-        return self._exchange_id
-    
-    @property
-    def position_type(self) -> str:
-        return self._position_type
+    def side(self) -> str:
+        return self._side
     
     @property
     def open_price(self) -> float:
         return self._open_price
 
     @property
-    def open_quantity(self) -> int:
-        return self._open_quantity
+    def open_volume(self) -> int:
+        return self._open_volume
 
     @property
     def open_commission(self) -> float:
@@ -67,66 +66,78 @@ class Position(ISerializer):
         return self._open_date
     
     @property
-    def quantity(self) -> int:
-        return self._quantity
+    def current_volume(self) -> int:
+        return self._open_volume - sum(close.volume for close in self._closes)
     
     @property
     def status(self) -> str:
-        return "opened" if self._quantity > 0 else "closed"
+        return "opened" if self.current_volume > 0 else "closed"
     
     @property
-    def commission(self) -> float:
-        return self._commission
+    def opened(self) -> bool:
+        return self.status == "opened"
+    
+    @property
+    def closed(self) -> bool:
+        return self.status == "closed"
+    
+    @property
+    def total_commission(self) -> float:
+        return self._open_commission + sum(close.commission for close in self._closes)
     
     @property
     def closes(self) -> Sequence["Close"]:
         return self._closes
 
-    
     def setup(self, contract: Contract):
-        assert contract.code == self._contract_code, f"contract code '{contract.code}' does not match position contract_code '{self._contract_code}'"
+        assert contract.code == self._code, f"contract code '{contract.code}' does not match position contract_code '{self._code}'"
         self._contract = contract
 
-    def close(self, price: float, quantity: int, commission: float, date: datetime):
-        assert self._quantity >= quantity, f"cannot close more than current quantity {self._quantity}"
-        self._quantity -= quantity
-        self._commission += commission
-        self._closes.append(Close(price, quantity, commission, date))
+    def close(self, price: float, volume: int, commission: float, date: datetime) -> "Close":
+        assert self.current_volume >= volume, f"cannot close more than current quantity {self.current_volume}"
+        close = Close(price, volume, commission, date)
+        self._closes.append(close)
+        return close
 
     def to_dict(self) -> dict:
         return {
-            "contract_code": self._contract_code,
-            "position_type": self._position_type,
-            "open_price": self._open_price,
-            "open_quantity": self._open_quantity,
-            "open_commission": self._open_commission,
-            "open_date": self._open_date.isoformat(),
-            "quantity": self._quantity,
-            "commission": self._commission,
+            "id": self._id,
+            "code": self._code,
+            "side": self._side,
+            "price": self._open_price,
+            "volume": self._open_volume,
+            "commission": self._open_commission,
+            "date": self._open_date.isoformat(),
             "closes": [c.to_dict() for c in self._closes]
         }
 
 
-class Close(TObject):
+class Close(ISerializer):
     def __init__(
         self,
         price: float,
-        quantity: int,
+        volume: int,
         commission: float,
-        date: datetime
+        date: datetime,
+        id: Optional[str] = None
     ):
+        self._id = secrets.token_urlsafe(8) if id is None else id
         self._price = price
-        self._quantity = quantity
+        self._volume = volume
         self._commission = commission
         self._date = date
+
+    @property
+    def id(self) -> str:
+        return self._id
 
     @property
     def price(self) -> float:
         return self._price
     
     @property
-    def quantity(self) -> int:
-        return self._quantity
+    def volume(self) -> int:
+        return self._volume
     
     @property
     def commission(self) -> float:
@@ -138,8 +149,27 @@ class Close(TObject):
     
     def to_dict(self) -> dict:
         return {
+            "id": self._id,
             "price": self._price,
-            "quantity": self._quantity,
+            "volume": self._volume,
             "commission": self._commission,
             "date": self._date.isoformat()
         }
+    
+
+@dataclass
+class PositionLog(ISerializer):
+    id: str
+    type: str
+    side: str
+    price: float
+    volume: int
+    date: datetime
+    close_id: Optional[str] = None
+
+    def to_dict(self) -> Dict:
+        return {k: v for k, v in self.__annotations__.items()}
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> "PositionLog":
+        return cls(**data)

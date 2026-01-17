@@ -8,6 +8,9 @@ __all__ = ["ContractManager"]
 
 
 class ContractManager(Plugin):
+    Name: str = "contract"
+    Depends: Sequence[str] = []
+
     def __init__(self, contracts: Optional[Sequence[Contract]] = None):
         self._contracts = []
         self._contract_map = {}
@@ -23,6 +26,11 @@ class ContractManager(Plugin):
         assert contract.code not in self._contract_map, ValueError(f"Contract code '{contract.code}' already exists")
         self._contracts.append(contract)
         self._contract_map[contract.code] = contract
+
+    def get_contract(self, code: str) -> Contract:
+        contract = self._contract_map.get(code)
+        assert contract is not None, ValueError(f"Contract '{code}' not found")
+        return contract
 
     def to_dict(self):
         d = super().to_dict()

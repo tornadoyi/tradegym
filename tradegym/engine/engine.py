@@ -35,3 +35,20 @@ class TradeEngine(PluginManager):
     @property
     def kline(self) -> KLineManager:
         return self.get_or_create_plugin('kline')
+    
+    def open(self, code: str, side: str, price: float, volume: int) -> None:
+        contract = self.contract.get_contract(code)
+
+        # tick size check
+        if not (abs(price / contract.tick_size - round(price / contract.tick_size)) < 1e-9):
+            raise ValueError(f"price {price} is not a valid price for {code}, tick size is {contract.tick_size}")
+
+        # open
+        open_cash = price * volume * contract.size * volume
+
+        # calculate commision
+        open_fee = contract.commission(self, contract=contract, volume=volume, price=price, trade_type='open', position_side=side)
+
+
+    def close(self, code: str, side: str, price: float, volume: int) -> None:
+        pass

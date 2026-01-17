@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import pandas as pd
 from tradegym.engine.core import ISerializer
+from .quote import Quote
 
 
 __all__ = ["KLine"]
@@ -31,6 +32,10 @@ class KLine(ISerializer):
     @property
     def cursor(self) -> int:
         return self._cusor
+    
+    @property
+    def quote(self) -> Quote:
+        return Quote.from_dict(self._dataframe.iloc[self._cusor].to_dict())
     
     @property
     def terminated(self) -> bool:

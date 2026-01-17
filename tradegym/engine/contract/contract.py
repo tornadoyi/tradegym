@@ -1,5 +1,5 @@
 from typing import Optional, Dict
-from tradegym.engine.core import TObject
+from tradegym.engine.core import ISerializer
 from .commission import Commission, FreeCommission
 
 
@@ -7,7 +7,7 @@ __all__ = ["Contract"]
 
 
 
-class Contract(TObject):
+class Contract(ISerializer):
     def __init__(
         self,
         code: str,
@@ -53,6 +53,12 @@ class Contract(TObject):
     @property
     def commission(self) -> Commission:
         return self._commission
+    
+    def calculate_notional_value(self, price: float, volume: int) -> float:
+        return price * self.size * volume
+    
+    def calculate_margin(self, price: float, volume: int) -> float:
+        return round(self.calculate_notional_value(price, volume) * self.margin_rate, 2)
 
     def to_dict(self) -> dict:
         return {

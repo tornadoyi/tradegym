@@ -1,49 +1,52 @@
-from typing import Optional, Dict, Type, Any
+from typing import Optional, Dict
 from abc import ABC, abstractmethod
-import sys
-from tradegym.engine.core import TObject
+from dataclasses import dataclass
+from tradegym.engine.core import ISerializer
 from tradegym.engine.engine import TradeEngine
+from tradegym.engine.account import Position
 
 
 __all__ = [
     "Commission", 
     "FreeCommission", 
-    "CTPCommission"
+    "CTPCommission",
+    "CommisionInfo"
 ]
 
 
+@dataclass
+class CommisionInfo(object):
+    total_fee: float
+    exchange_fee: Optional[float] = None
+    broker_fee: Optional[float] = None
 
-class Commission(TObject, ABC):
+    def to_dict(self) -> Dict:
+        d = {}
+        for base_cls in type(self).mro()[::-1]:
+            if not hasattr(base_cls, "__annotations__"):
+                continue
+            d.update({k: v  for k, v in base_cls.__annotations__.items() if v is not None})
+        return d
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> "CommisionInfo":
+        return cls(**data)
+
+
+class Commission(ISerializer, ABC):
     Name: str
-
-    __COMMISSIONS__: Dict[str, Type["Commission"]] = {}
 
     @abstractmethod
     def __call__(
         self,
         engine: TradeEngine,
         contract: "Contract",
-        quantity: int,
         price: float,
+        volume: int,
         trade_type: str,        # open/close
-        position_type: str,     # long/short
-    ):
+        position: Optional[Position] = None,
+    ) -> CommisionInfo:
         pass
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Commission":
-        def make(name: str, **kwargs):
-            return Commission.__COMMISSIONS__[name](**kwargs)
-        name = data.get('name', None)
-        if name not in Commission.__COMMISSIONS__:
-            raise KeyError(f"commission '{name}' is not registered")
-        return make(**data)
-
-    @staticmethod
-    def register(atype: Type["Commission"]):
-        if atype.Name in Commission.__COMMISSIONS__:
-            print(f"WARNNING commission '{atype.Name}' has been overrided by '{atype}'", file=sys.stderr)
-        Commission.__COMMISSIONS__[atype.Name] = atype
 
 
 
@@ -51,71 +54,77 @@ class FreeCommission(Commission):
     Name: str = "free_commission"
 
     def __call__(self, *args, **kwargs):
-        return 0
-
+        return CommisionInfo(total_fee=0)
 
 
 
 class CTPCommission(Commission):
+    """
+    ex: exchang
+    bk: broker
+    adv: advanced
+    """
+
     Name: str = "ctp_commission"
 
-    def __init__(
-        self,
-        ex_open_fee: float = 0,
-        ex_open_fee_rate_adv: float = 0,
-        ex_close_fee : float = 0,
-        ex_close_fee_today : float = 0,
-        ex_close_fee_rate_adv: float = 0,
-        ex_close_fee_rate_adv_today: float = 0,
-        bk_open_fee: float = 0,
-        bk_open_fee_rate_adv: float = 0,
-        bk_close_fee : float = 0,
-        bk_close_fee_today : float = 0,
-        bk_close_fee_rate_adv: float = 0,
-        bk_close_fee_rate_adv_today: float = 0,
-    ):
-        self._ex_open_fee = ex_open_fee
-        self._ex_open_fee_rate_adv = ex_open_fee_rate_adv
-        self._ex_close_fee = ex_close_fee
-        self._ex_close_fee_today = ex_close_fee_today
-        self._ex_close_fee_rate_adv = ex_close_fee_rate_adv
-        self._ex_close_fee_rate_adv_today = ex_close_fee_rate_adv_today
-        self._bk_open_fee = bk_open_fee
-        self._bk_open_fee_rate_adv = bk_open_fee_rate_adv
-        self._bk_close_fee = bk_close_fee
-        self._bk_close_fee_today = bk_close_fee_today
-        self._bk_close_fee_rate_adv = bk_close_fee_rate_adv
-        self._bk_close_fee_rate_adv_today = bk_close_fee_rate_adv_today
+    ex_open_fee: float = 0,
+    ex_open_fee_rate: float = 0,
+    ex_close_fee : float = 0,
+    ex_close_fee_today : float = 0,
+    ex_close_fee_rate_adv: float = 0,
+    ex_close_fee_rate_adv_today: float = 0,
+    bk_open_fee: float = 0,
+    bk_open_fee_rate: float = 0,
+    bk_close_fee : float = 0,
+    bk_close_fee_today : float = 0,
+    bk_close_fee_rate_adv: float = 0,
+    bk_close_fee_rate_adv_today: float = 0,
 
     def __call__(
         self,
         engine: TradeEngine,
         contract: "Contract",
-        quantity: int,
         price: float,
+        volume: int,
         trade_type: str,        # open/close
-        position_type: str,     # long/short
+        position: Optional[Position] = None,
     ):
-        notional = price * contract.size * quantity
+        # notional
+        notional = contract.calculate_notional_value(price, volume)
 
         # open
         if trade_type == "open":
-            return sum([
-                self._ex_open_fee * quantity,
-                self._bk_open_fee * quantity,
-                notional * self._ex_open_fee_rate_adv,
-                notional * self._bk_open_fee_rate_adv
-            ])
+            exchange_fee = self.ex_open_fee * volume + notional * self.ex_open_fee_rate
+            broker_fee = self.bk_open_fee * volume + notional * self.bk_open_fee_rate
+            return CommisionInfo(
+                total_fee=exchange_fee + broker_fee,
+                exchange_fee=exchange_fee,
+                broker_fee=broker_fee,
+            )
         
         # close
-        return sum([
-            self._ex_close_fee * quantity,
-            self._bk_close_fee * quantity,
-            notional * self._ex_close_fee_rate_adv,
-            notional * self._bk_close_fee_rate_adv,
-        ])
+        if engine.clock.now.day == position.open_date.day:
+            ex_close_fee = self.ex_close_fee_today
+            bk_close_fee = self.bk_close_fee_today
+            ex_close_rate = self.ex_close_fee_rate_adv_today
+            bk_close_rate = self.bk_close_fee_rate_adv_today
+        else:
+            ex_close_fee = self.ex_close_fee
+            bk_close_fee = self.bk_close_fee
+            ex_close_rate = self.ex_close_fee_rate_adv
+            bk_close_rate = self.bk_close_fee_rate_adv
 
-
-
-Commission.register(FreeCommission)
-Commission.register(CTPCommission)
+        exchange_fee = ex_close_fee * volume + notional * ex_close_rate
+        broker_fee = bk_close_fee * volume + notional * bk_close_rate
+        return CommisionInfo(
+            total_fee=exchange_fee + broker_fee,
+            exchange_fee=exchange_fee,
+            broker_fee=broker_fee,
+        )
+    
+    def to_dict(self) -> Dict:
+        return {k: v for k, v in self.__annotations__.items() if k != "Name"}
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> "CTPCommission":
+        return cls(**data)
