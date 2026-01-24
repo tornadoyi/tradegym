@@ -1,4 +1,5 @@
 from typing import Optional, Tuple
+from tradegym.engine.core import PrivateAttr, computed_property
 from .trader import Trader
 
 
@@ -8,19 +9,15 @@ __all__ = ["CTPTrader"]
 
 class CTPTrader(Trader):
 
-    def __init__(
-        self,
-        cur_price_key: str,
-        slippage: Optional[float] = None
-    ):
-        self._cur_price_key = cur_price_key
-        self._slippage = slippage
+    _cur_price_key: str = PrivateAttr()
+    _slippage: Optional[float] = PrivateAttr(None)
 
-    @property
+
+    @computed_property
     def cur_price_key(self) -> str:
         return self._cur_price_key
 
-    @property
+    @computed_property
     def slippage(self) -> Optional[float]:
         return self._slippage
     
@@ -33,7 +30,7 @@ class CTPTrader(Trader):
         # wallet
         contract = self.contract.get_contract(code)
         margin = contract.calculate_margin(price, volume)
-        if not self.account.wallet.has_enough_available_cash(margin):
+        if not self.account.wallet.has_enough_cash(margin):
             return False, f"Not enough available cash, avalable cash: {self.account.wallet.available_cash}, required: {margin}"
 
         return True, None
