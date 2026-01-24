@@ -1,5 +1,5 @@
 from typing import Optional, Dict
-from tradegym.engine.core import ISerializer
+from tradegym.engine.core import TObject
 from .commission import Commission, FreeCommission
 
 
@@ -7,7 +7,7 @@ __all__ = ["Contract"]
 
 
 
-class Contract(ISerializer):
+class Contract(TObject):
     def __init__(
         self,
         code: str,

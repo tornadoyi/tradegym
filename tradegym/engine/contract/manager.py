@@ -1,5 +1,5 @@
-from typing import Optional, Sequence
-from tradegym.engine.core import Plugin
+from typing import Optional, List, ClassVar, Dict
+from tradegym.engine.core import Plugin, PrivateAttr, computed_property
 from .contract import Contract
 
 
@@ -8,18 +8,19 @@ __all__ = ["ContractManager"]
 
 
 class ContractManager(Plugin):
-    Name: str = "contract"
-    Depends: Sequence[str] = []
+    Name: ClassVar[str] = "contract"
 
-    def __init__(self, contracts: Optional[Sequence[Contract]] = None):
-        self._contracts = []
-        self._contract_map = {}
+    _contracts: List[Contract] = PrivateAttr(default_factory=list)
+    _contract_map: Dict[str, Contract] = PrivateAttr(default_factory=dict)
+
+    def __init__(self, contracts: Optional[List[Contract]] = None):
+        super().__init__()
         if contracts is not None:
-            for contract in contracts:
+            for contract in self._contracts:
                 self.add_contract(contract)
 
-    @property
-    def contracts(self) -> Sequence[Contract]:
+    @computed_property
+    def contracts(self) -> List[Contract]:
         return self._contracts
     
     def add_contract(self, contract: Contract) -> None:
@@ -32,10 +33,6 @@ class ContractManager(Plugin):
         assert contract is not None, ValueError(f"Contract '{code}' not found")
         return contract
 
-    def to_dict(self):
-        d = super().to_dict()
-        d.update(contracts = [c.to_dict() for c in self.contracts])
-        return d
     
 
 Plugin.register(ContractManager)

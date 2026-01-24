@@ -1,43 +1,36 @@
 from typing import Optional, Sequence, List, Dict
-from dataclasses import dataclass
 from datetime import datetime
 import secrets
-from tradegym.engine.core import ISerializer
+from tradegym.engine.core import TObject, PrivateAttr, computed_property
 from tradegym.engine.contract import Contract
 
 
 __all__ = ["Position", "PositionLog"]
 
 
-class Position(ISerializer):
-    def __init__(
-        self,
-        code: str,
-        side: str,
-        price: float,
-        volume: int,
-        commission: float,
-        date: datetime,
-        id: Optional[str] = None,
-    ):
-        assert side.lower() in ["long", "short"], f"invalid side '{side}', must be long or short"
-        self._id = secrets.token_urlsafe(8) if id is None else id
-        self._code = code
-        self._contract: Optional[Contract] = None
-        self._side = side.lower()
+class Position(TObject):
+    _code: str = PrivateAttr()
+    _side: str = PrivateAttr()
+    _price: float = PrivateAttr()
+    _volume: float = PrivateAttr()
+    _commission: float = PrivateAttr()
+    _date: datetime = PrivateAttr()
 
-        self._open_price = price
-        self._open_volume = volume
-        self._open_commission = commission
-        self._open_date = date
+    _id: str = PrivateAttr(default_factory=lambda: secrets.token_urlsafe(8))
+    _contract: Optional[Contract] = PrivateAttr(None)
+    _closes: List["Close"] = PrivateAttr(default_factory=list)
 
-        self._closes: List[Close] = []
 
-    @property
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert self._side in ["long", "short"], f"invalid side '{self._side}', must be long or short"
+
+    
+    @computed_property
     def id(self) -> str:
         return self._id
 
-    @property
+    @computed_property
     def code(self) -> str:
         return self._code
     
@@ -45,29 +38,29 @@ class Position(ISerializer):
     def contract(self) -> Optional[Contract]:
         return self._contract
     
-    @property
+    @computed_property
     def side(self) -> str:
         return self._side
     
-    @property
-    def open_price(self) -> float:
-        return self._open_price
+    @computed_property
+    def price(self) -> float:
+        return self._price
 
-    @property
-    def open_volume(self) -> int:
-        return self._open_volume
+    @computed_property
+    def volume(self) -> int:
+        return self._volume
 
-    @property
-    def open_commission(self) -> float:
-        return self._open_commission
+    @computed_property
+    def commission(self) -> float:
+        return self._commission
 
-    @property
-    def open_date(self) -> datetime:
-        return self._open_date
+    @computed_property
+    def date(self) -> datetime:
+        return self._date
     
     @property
     def current_volume(self) -> int:
-        return self._open_volume - sum(close.volume for close in self._closes)
+        return self._volume - sum(close.volume for close in self._closes)
     
     @property
     def status(self) -> str:
@@ -83,7 +76,7 @@ class Position(ISerializer):
     
     @property
     def total_commission(self) -> float:
-        return self._open_commission + sum(close.commission for close in self._closes)
+        return self._commission + sum(close.commission for close in self._closes)
     
     @property
     def closes(self) -> Sequence["Close"]:
@@ -99,77 +92,72 @@ class Position(ISerializer):
         self._closes.append(close)
         return close
 
-    def to_dict(self) -> dict:
-        return {
-            "id": self._id,
-            "code": self._code,
-            "side": self._side,
-            "price": self._open_price,
-            "volume": self._open_volume,
-            "commission": self._open_commission,
-            "date": self._open_date.isoformat(),
-            "closes": [c.to_dict() for c in self._closes]
-        }
+    
 
+class Close(TObject):
 
-class Close(ISerializer):
-    def __init__(
-        self,
-        price: float,
-        volume: int,
-        commission: float,
-        date: datetime,
-        id: Optional[str] = None
-    ):
-        self._id = secrets.token_urlsafe(8) if id is None else id
-        self._price = price
-        self._volume = volume
-        self._commission = commission
-        self._date = date
+    _price: float = PrivateAttr()
+    _volume: int = PrivateAttr()
+    _commission: float = PrivateAttr()
+    _date: datetime = PrivateAttr()
+    _id: str = PrivateAttr(default_factory=lambda: secrets.token_urlsafe(8))
 
-    @property
+    @computed_property
     def id(self) -> str:
         return self._id
 
-    @property
+    @computed_property
     def price(self) -> float:
         return self._price
     
-    @property
+    @computed_property
     def volume(self) -> int:
         return self._volume
     
-    @property
+    @computed_property
     def commission(self) -> float:
         return self._commission
     
-    @property
+    @computed_property
     def date(self) -> datetime:
         return self._date
     
-    def to_dict(self) -> dict:
-        return {
-            "id": self._id,
-            "price": self._price,
-            "volume": self._volume,
-            "commission": self._commission,
-            "date": self._date.isoformat()
-        }
-    
 
-@dataclass
-class PositionLog(ISerializer):
-    id: str
-    type: str
-    side: str
-    price: float
-    volume: int
-    date: datetime
-    close_id: Optional[str] = None
 
-    def to_dict(self) -> Dict:
-        return {k: v for k, v in self.__annotations__.items()}
+class PositionLog(TObject):
+
+    _id: str = PrivateAttr()
+    _type: str = PrivateAttr()
+    _side: str = PrivateAttr()
+    _price: float = PrivateAttr()
+    _volume: int = PrivateAttr()
+    _date: datetime = PrivateAttr()
+    _close_id: Optional[str] = PrivateAttr(None)
+
+    @computed_property
+    def id(self) -> str:
+        return self._id
     
-    @classmethod
-    def from_dict(cls, data: Dict) -> "PositionLog":
-        return cls(**data)
+    @computed_property
+    def type(self) -> str:
+        return self._type
+    
+    @computed_property
+    def side(self) -> str:
+        return self._side
+    
+    @computed_property
+    def price(self) -> float:
+        return self._price
+    
+    @computed_property
+    def volume(self) -> int:
+        return self._volume
+    
+    @computed_property
+    def date(self) -> datetime:
+        return self._date
+    
+    @computed_property
+    def close_id(self) -> Optional[str]:
+        return self._close_id

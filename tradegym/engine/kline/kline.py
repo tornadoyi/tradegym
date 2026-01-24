@@ -1,8 +1,8 @@
-from typing import Optional, Sequence, Union, Dict
+from typing import Optional, Sequence, Union
 import numpy as np
 from datetime import datetime, timedelta
 import pandas as pd
-from tradegym.engine.core import ISerializer
+from tradegym.engine.core import TObject, PrivateAttr, computed_property
 from .quote import Quote
 
 
@@ -10,26 +10,30 @@ __all__ = ["KLine"]
 
 
 
-class KLine(ISerializer):
-    def __init__(self, name: str, dataframe: pd.DataFrame, timestep: timedelta, cursor: Optional[int] = None):
-        self._name = name
-        self._dataframe: pd.DataFrame = self.normalize_dataframe(dataframe)
-        self._timestep = timestep
-        self._cusor = 0 if cursor is None else cursor
+class KLine(TObject):
 
-    @property
+    _name: str = PrivateAttr()
+    _dataframe: pd.DataFrame = PrivateAttr()
+    _timestep: timedelta = PrivateAttr()
+    _cusor: int = PrivateAttr(0)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._dataframe = self.normalize_dataframe(self._dataframe)
+
+    @computed_property
     def name(self) -> str:
         return self._name
 
-    @property
+    @computed_property
     def dataframe(self) -> pd.DataFrame:
         return self._dataframe
     
-    @property
+    @computed_property
     def columns(self) -> Sequence[str]:
         return self._dataframe.columns
     
-    @property
+    @computed_property
     def cursor(self) -> int:
         return self._cusor
     
@@ -77,21 +81,3 @@ class KLine(ISerializer):
         df = df.sort_values('datetime', ascending=True)
         df.columns = df.columns.str.split('.').str[-1]
         return df
-    
-    def to_dict(self):
-        d = super().to_dict()
-        d.update(
-            name=self._name,
-            dataframe=self._dataframe.to_dict(),
-            timestep=self._timestep.total_seconds(),
-            cursor=self._cusor
-        )
-        return d
-    
-    def from_dict(cls, data: Dict):
-        return cls(
-            name=data['name'],
-            dateframe=pd.DataFrame.from_dict(data['dataframe']), 
-            timestep=timedelta(seconds=data['timestep']), 
-            cursor=data.get('cursor', None)
-        )

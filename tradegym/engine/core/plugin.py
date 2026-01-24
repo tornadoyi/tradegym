@@ -1,16 +1,16 @@
-from typing import Optional, Sequence, Dict, Type, Union
-from .serializer import ISerializer
+from typing import Optional, Sequence, Dict, Type, Union, ClassVar
+from .object import TObject
 
 
 __all__ = ["Plugin", "PluginManager"]
 
 
-class Plugin(ISerializer):
+class Plugin(TObject):
 
-    __PLUGINS__: Dict[str, Type["Plugin"]] = {}
+    __PLUGINS__: ClassVar[Dict[str, Type["Plugin"]]] = {}
 
-    Name: str
-    Depends: Sequence[str] = []
+    Name: ClassVar[str]
+    Depends: ClassVar[Sequence[str]] = []
 
     @property
     def name(self) -> str:
@@ -36,17 +36,9 @@ class Plugin(ISerializer):
     
     @classmethod
     def from_dict(cls, data: Dict) -> "Plugin":
-        if cls == Plugin:
-            name = data.get('name', None)
-            assert name is not None, ValueError("Plugin.from_dict() requires a 'name' field in data")
-            cls = Plugin.__PLUGINS__.get(name, None)
-            assert cls is not None, ValueError(f"Plugin type '{cls}' is not found")
-            new_plugin = lambda name=None, **kwargs: cls.from_dict(kwargs)
-            return new_plugin(**data)
-        
-        new_plugin = lambda name=None, **kwargs: cls(**kwargs)
-        return new_plugin(**data)
-
+        _from = lambda name, **kwds: cls.model_validate(**kwds)
+        return _from(**data)
+    
     @staticmethod
     def register(type: Type["Plugin"]):
         assert type.Name is not None, ValueError(f"Register plugin type '{type}' have no name field")
@@ -56,11 +48,13 @@ class Plugin(ISerializer):
 
     @staticmethod
     def make(name: str, **kwargs) -> Optional["Plugin"]:
-        return Plugin.from_dict(data={'name': name, **kwargs})
+        cls = Plugin.__PLUGINS__.get(name, None)
+        assert cls is not None, ValueError(f"Plugin type '{name}' is not found")
+        return cls.from_dict(data=kwargs)
 
 
 
-class PluginManager(ISerializer):
+class PluginManager(TObject):
 
     @property
     def plugins(self) -> Dict[str, Plugin]:
@@ -138,6 +132,6 @@ class PluginManager(ISerializer):
     
     @classmethod
     def from_dict(cls, data: Dict) -> "PluginManager":
-        plugins = {k: Plugin.from_dict(v) for k, v in data.items()}
+        plugins = {k: Plugin.make(k, **v) for k, v in data.items()}
         return cls(**plugins)
     

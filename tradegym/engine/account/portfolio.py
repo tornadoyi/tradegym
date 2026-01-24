@@ -1,17 +1,21 @@
-from typing import Optional, Sequence, Union
-from tradegym.engine.core import ISerializer
+from typing import Optional, Sequence, Union, List
+from tradegym.engine.core import TObject, PrivateAttr, computed_property
 from .position import Position, PositionLog
 
 
 __all__ = ["Portfolio"]
 
 
-class Portfolio(ISerializer):
-    def __init__(self, positions: Optional[Sequence[Position]] = None):
-        self._positions = [] if positions is None else positions
-        self._closed_positions = [p for p in positions if p.current_volume == 0]
+class Portfolio(TObject):
 
-    @property
+    _positions: List[Position] = PrivateAttr(default_factory=list)
+    _closed_positions: List[Position] = PrivateAttr()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._closed_positions = [p for p in self._positions if p.current_volume == 0]
+
+    @computed_property
     def positions(self) -> Sequence[Position]:
         return self._positions
 
@@ -94,7 +98,3 @@ class Portfolio(ISerializer):
 
         return positions
     
-    def to_dict(self) -> dict:
-        return {
-            "positions": [p.to_dict() for p in self._positions],
-        }

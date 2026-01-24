@@ -1,5 +1,5 @@
-from typing import Optional, Sequence, Dict
-from tradegym.engine.core import Plugin
+from typing import Optional, List, Dict, ClassVar
+from tradegym.engine.core import Plugin, PrivateAttr, computed_property
 from .kline import KLine
 
 
@@ -8,19 +8,17 @@ __all__ = ["KLineManager"]
 
 
 class KLineManager(Plugin):
-    Name: str = "kline"
-    Depends: Sequence[str] = []
+    Name: ClassVar[str] = "kline"
 
-    def __init__(
-        self,
-        klines: Optional[Sequence[KLine]] = None
-    ):
-        self._klines = []
-        self._kline_map: Dict[str, KLine] = {}
-        if kline in klines:
+    _klines: List[KLine] = PrivateAttr(default_factory=list)
+    _kline_map: Dict[str, KLine] = PrivateAttr(default_factory=dict)
+
+    def __init__(self, klines: Optional[List[KLine]] = None):
+        super().__init__()
+        if klines is not None:
             for kline in klines:
                 self.add_kline(kline)
-
+            
     def add_kline(self, kline: KLine) -> None:
         if kline.name in self._kline_map:
             raise ValueError(f"KLine '{kline.name}' already exists")
@@ -31,13 +29,6 @@ class KLineManager(Plugin):
         kline = self._kline_map.get(name, None)
         assert kline is not None, f"KLine '{name}' not found"
         return kline
-    
-    def to_dict(self):
-        d = super().to_dict()
-        d.update(
-            klines = [kline.to_dict() for kline in self._klines]
-        )
-        return d
     
 
 Plugin.register(KLineManager)

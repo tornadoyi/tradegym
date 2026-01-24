@@ -1,6 +1,5 @@
-from typing import Optional, Sequence, Dict
-from dataclasses import dataclass
-from tradegym.engine.core import Plugin, ISerializer
+from typing import Optional, Sequence, Dict, ClassVar
+from tradegym.engine.core import Plugin, TObject, PrivateAttr, computed_property
 from .portfolio import Portfolio, PositionLog
 from .wallet import Wallet, WalletLog
 
@@ -8,57 +7,41 @@ from .wallet import Wallet, WalletLog
 __all__ = ["Account", "AccountLog"]
 
 
-@dataclass
-class AccountLog(ISerializer):
-    position: Optional[PositionLog] = None
-    wallet: Optional[WalletLog] = None
+class AccountLog(TObject):
+    _position: Optional[PositionLog] = PrivateAttr(None)
+    _wallet: Optional[WalletLog] = PrivateAttr(None)
 
-    def to_dict(self) -> Dict:
-        return {k: v.to_dict() for k, v in self.__annotations__.items() if v is not None}
+    @computed_property
+    def position(self) -> Optional[PositionLog]:
+        return self._position
     
-    @classmethod
-    def from_dict(cls, data: Dict) -> "AccountLog":
-        return cls(
-            position = PositionLog.from_dict(data["position"]) if "position" in data else None,
-            wallet = WalletLog.from_dict(data["wallet"]) if "wallet" in data else None
-        )
+    @computed_property
+    def wallet(self) -> Optional[WalletLog]:
+        return self._wallet
+
 
 
 class Account(Plugin):
-    Name: str = "account"
-    Depends: Sequence[str] = []
-
-    def __init__(
-        self,
-        wallet: Optional[Wallet] = None,
-        portfolio: Optional[Portfolio] = None,
-  
-    ):
-        self._wallet = Wallet(0) if wallet is None else wallet
-        self._portfolio = Portfolio() if portfolio is None else portfolio
+    Name: ClassVar[str] = "account"
     
-    @property
+    _wallet: Wallet = PrivateAttr(default_factory=lambda: Wallet(0.0))
+    _portfolio: Portfolio = PrivateAttr(default_factory=lambda: Portfolio())
+
+    @computed_property
     def wallet(self) -> Wallet:
         return self._wallet
     
-    @property
+    @computed_property
     def portfolio(self) -> Portfolio:
         return self._portfolio
     
-    def to_dict(self) -> Dict:
-        d = super().to_dict()
-        d.update(
-            wallet = self.wallet.to_dict(),
-            portfolio = self.portfolio.to_dict()
-        )
-        return d
+    def open(self, margin: float, **kwargs) -> AccountLog:
+        w_log = self.wallet.allocate_margin(margin)
+        p_log = self.portfolio.open(**kwargs)
+        return AccountLog(position=p_log, wallet=w_log)
+
     
-    @classmethod
-    def from_dict(cls, data: Dict):
-        return cls(
-            wallet = Wallet.from_dict(data["wallet"]),
-            portfolio = Portfolio.from_dict(data["portfolio"])
-        )
+
     
    
 Plugin.register(Account)

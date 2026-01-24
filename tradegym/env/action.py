@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any, Type, List
 import sys
 import traceback
-from dataclasses import dataclass
+
 from abc import ABC, abstractmethod
 import gymnasium as gym
 

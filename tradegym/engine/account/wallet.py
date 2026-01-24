@@ -1,45 +1,39 @@
 from typing import Optional, Dict
-from dataclasses import dataclass
-from tradegym.engine.core import ISerializer
+from tradegym.engine.core import TObject, PrivateAttr, computed_property
 
 
 __all__ = ["Wallet", "WalletLog"]
 
 
-@dataclass
-class WalletLog(ISerializer):
-    cash_changed: float
-    margin_changed: float
+class WalletLog(TObject):
+    _changed_cash: float = PrivateAttr()
+    _changed_margin: float = PrivateAttr()
 
-    def to_dict(self) -> Dict:
-        return {k: v for k, v in self.__annotations__.items()}
+    @computed_property
+    def changed_cash(self) -> float:
+        return self._changed_cash
     
-    @classmethod
-    def from_dict(cls, data: Dict) -> "WalletLog":
-        return cls(**data)
+    @computed_property
+    def changed_margin(self) -> float:
+        return self._changed_margin
 
 
 
-class Wallet(ISerializer):
-    def __init__(
-        self,
-        cash: float,
-        currency: str = 'CNY',
-        margin: Optional[float] = None
-    ):
-        self._cash = cash
-        self._currency = currency
-        self._margin = 0.0 if margin is None else margin
+class Wallet(TObject):
 
-    @property
+    _cash: float = PrivateAttr()
+    _currency: str = PrivateAttr()
+    _margin: float = PrivateAttr(0.0)
+
+    @computed_property
     def cash(self) -> float:
         return self._cash
     
-    @property
+    @computed_property
     def currency(self) -> Optional[str]:
         return self._currency
     
-    @property
+    @computed_property
     def margin(self) -> float:
         return self._margin
     
@@ -50,7 +44,7 @@ class Wallet(ISerializer):
         self._cash += amount
         return WalletLog(cash_changed=amount, margin_changed=0.0)
     
-    def reserve_margin(self, amount: float) -> WalletLog:
+    def allocate_margin(self, amount: float) -> WalletLog:
         assert self.has_enough_cash(amount), ValueError(f"Not enough available cash, current: {self._cash}, required: {amount}")
         self._margin += amount
         self._cash -= amount
@@ -61,24 +55,3 @@ class Wallet(ISerializer):
         self._margin -= amount
         self._cash += amount
         return WalletLog(cash_changed=amount, margin_changed=-amount)
-
-    def to_dict(self):
-        return {
-            "cash": self.cash,
-            "currency": self.currency,
-            "margin": self.margin
-        }
-    
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(
-            cash=data["cash"],
-            currency=data["currency"],
-            margin=data.get("margin")
-        )
-
-
-    
-
-
-
