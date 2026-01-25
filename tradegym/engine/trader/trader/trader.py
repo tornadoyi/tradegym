@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from tradegym.engine.core import Plugin, TObject, PrivateAttr, computed_property
 from tradegym.engine.contract import ContractManager, CommisionInfo
 from tradegym.engine.kline import KLineManager
-from tradegym.engine.account import Account
+from tradegym.engine.account import Account, AccountLog
 
 
 __all__ = ["Trader", "TradeInfo"]
@@ -14,12 +14,12 @@ class TradeInfo(TObject):
     _type: str = PrivateAttr()
     _side: str = PrivateAttr()
     _price: float = PrivateAttr()
-    _volume: int = PrivateAttr()
-    _commission: CommisionInfo = PrivateAttr()
     _success: bool = PrivateAttr()
+    _volume: Optional[None] = PrivateAttr(None)
+    _slippage_price: Optional[float] = PrivateAttr(None)
+    _commission: Optional[CommisionInfo] = PrivateAttr(None)
     _error: Optional[str] = PrivateAttr(None)
-    _cash_change: Optional[float] = PrivateAttr(None)
-    _margin_change: Optional[float] = PrivateAttr(None)
+    _account: Optional[AccountLog] = PrivateAttr(None)
 
     @computed_property
     def code(self) -> str:
@@ -40,26 +40,27 @@ class TradeInfo(TObject):
     @computed_property
     def volume(self) -> int:
         return self._volume
-
-    @computed_property
-    def commission(self) -> CommisionInfo:
-        return self._commission
-
+    
     @computed_property
     def success(self) -> bool:
         return self._success
+    
+    @computed_property
+    def slippage_price(self) -> Optional[float]:
+        return self._slippage_price
+
+    @computed_property
+    def commission(self) -> Optional[CommisionInfo]:
+        return self._commission
 
     @computed_property
     def error(self) -> Optional[str]:
         return self._error
 
     @computed_property
-    def cash_change(self) -> Optional[float]:
-        return self._cash_change
+    def account(self) -> Optional[AccountLog]:
+        return self._account
 
-    @computed_property
-    def margin_change(self) -> Optional[float]:
-        return self._margin_change
 
 
 
@@ -68,23 +69,27 @@ class Trader(Plugin, ABC):
     Depends: ClassVar[Sequence[str]] = ["contract", "kline", "account"]
 
     @property
+    def engine(self) -> "TradeEngine":
+        return self.manager
+
+    @property
     def account(self) -> Account:
-        return self.manager.account
+        return self.engine.account
 
     @property
     def contract(self) -> ContractManager:
-        return self.manager.contract
+        return self.engine.contract
     
     @property
     def kline(self) -> KLineManager:
-        return self.manager.kline
+        return self.engine.kline
 
     @abstractmethod
-    def can_open(self, code: str, side: str, price: float, volume: int) -> Tuple[str, Optional[str]]:
+    def try_open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
         pass
 
     @abstractmethod
-    def can_close(self, code: str, side: str, price: float, volume: int) -> Tuple[str, Optional[str]]:
+    def try_close(self, code: str, side: str, price: float, volume: Optional[int] = None) -> TradeInfo:
         pass
 
     @abstractmethod
@@ -92,6 +97,6 @@ class Trader(Plugin, ABC):
         pass
 
     @abstractmethod
-    def close(self, code: str, side: str, price: float, volume: int):
+    def close(self, code: str, side: str, price: float, volume: Optional[int] = None):
         pass
     

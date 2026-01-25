@@ -1,8 +1,9 @@
-from typing import ClassVar
+from typing import ClassVar, Optional
 from tradegym.engine.core import PrivateAttr, computed_property
 from tradegym.engine.engine import TradeEngine
 from tradegym.engine.account import Position
-from .commission import *
+from .contract import Contract
+from .commission import Commission, CommisionInfo
 
 
 __all__ = ["CTPCommission"]
@@ -83,25 +84,25 @@ class CTPCommission(Commission):
     def __call__(
         self,
         engine: TradeEngine,
-        contract: "Contract",
+        contract: Contract,
         price: float,
         volume: int,
-        trade_type: str,        # open/close
+        type: str,        # open/close
         position: Optional[Position] = None,
-    ):
+    ) -> CommisionInfo:
         # notional
         notional = contract.calculate_notional_value(price, volume)
 
         # open
-        if trade_type == "open":
+        if type == "open":
             exchange_fee = self.ex_open_fee * volume + notional * self.ex_open_fee_rate
             broker_fee = self.bk_open_fee * volume + notional * self.bk_open_fee_rate
             return CommisionInfo(
-                total_fee=exchange_fee + broker_fee,
                 exchange_fee=exchange_fee,
                 broker_fee=broker_fee,
             )
         
+        assert position is not None, ValueError("position is None for close")
         # close
         if engine.clock.now.day == position.date.day:
             ex_close_fee = self.ex_close_fee
@@ -117,7 +118,6 @@ class CTPCommission(Commission):
         exchange_fee = ex_close_fee * volume + notional * ex_close_rate
         broker_fee = bk_close_fee * volume + notional * bk_close_rate
         return CommisionInfo(
-            total_fee=exchange_fee + broker_fee,
             exchange_fee=exchange_fee,
             broker_fee=broker_fee,
         )

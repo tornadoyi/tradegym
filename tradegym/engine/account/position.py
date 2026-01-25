@@ -1,11 +1,11 @@
 from typing import Optional, Sequence, List, Dict
 from datetime import datetime
 import secrets
-from tradegym.engine.core import TObject, PrivateAttr, computed_property
+from tradegym.engine.core import TObject, PrivateAttr, computed_property, Formula
 from tradegym.engine.contract import Contract
 
 
-__all__ = ["Position", "PositionLog"]
+__all__ = ["Position", "Close"]
 
 
 class Position(TObject):
@@ -25,7 +25,6 @@ class Position(TObject):
         super().__init__(*args, **kwargs)
         assert self._side in ["long", "short"], f"invalid side '{self._side}', must be long or short"
 
-    
     @computed_property
     def id(self) -> str:
         return self._id
@@ -91,6 +90,15 @@ class Position(TObject):
         close = Close(price, volume, commission, date)
         self._closes.append(close)
         return close
+    
+    def calculate_realized_pnl(self) -> float:
+        return sum([
+            Formula.position_realized_pnl(self._price, close.price, close.volume, self._side, self._contract.multiplier, close.commission)
+            for close in self._closes 
+        ]) -self._commission
+    
+    def calculate_unrealized_pnl(self, last_price: float) -> float:
+        return Formula.position_unrealized_pnl(self._price, self.current_volume, self._side, self._contract.multiplier, last_price)
 
     
 
@@ -122,42 +130,3 @@ class Close(TObject):
     def date(self) -> datetime:
         return self._date
     
-
-
-class PositionLog(TObject):
-
-    _id: str = PrivateAttr()
-    _type: str = PrivateAttr()
-    _side: str = PrivateAttr()
-    _price: float = PrivateAttr()
-    _volume: int = PrivateAttr()
-    _date: datetime = PrivateAttr()
-    _close_id: Optional[str] = PrivateAttr(None)
-
-    @computed_property
-    def id(self) -> str:
-        return self._id
-    
-    @computed_property
-    def type(self) -> str:
-        return self._type
-    
-    @computed_property
-    def side(self) -> str:
-        return self._side
-    
-    @computed_property
-    def price(self) -> float:
-        return self._price
-    
-    @computed_property
-    def volume(self) -> int:
-        return self._volume
-    
-    @computed_property
-    def date(self) -> datetime:
-        return self._date
-    
-    @computed_property
-    def close_id(self) -> Optional[str]:
-        return self._close_id

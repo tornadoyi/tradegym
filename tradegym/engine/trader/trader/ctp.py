@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 from tradegym.engine.core import PrivateAttr, computed_property
-from .trader import Trader
+from tradegym.engine.contract import CommisionInfo
+from .trader import Trader, TradeInfo
 
 
 __all__ = ["CTPTrader"]
@@ -21,61 +22,100 @@ class CTPTrader(Trader):
     def slippage(self) -> Optional[float]:
         return self._slippage
     
-    def can_open(self, code: str, side: str, price: float, volume: int) -> Tuple[str, Optional[str]]:
+    def try_open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
+        trade_args = {"code": code, "type": "open", "side": side, "price": price, "volume": volume}
+
         # check slipage price
-        slip_price = self.get_slippage_price(code, "open", side)
-        if not ((price >= slip_price) if side == "long" else (price <= slip_price)):
-            return False, f"Current open price '{price}' is outside the allowed slippage price '{slip_price}'"
+        slippage_price = trade_args["slippage_price"] = self.get_slippage_price(code, "open", side)
+        if not ((price >= slippage_price) if side == "long" else (price <= slippage_price)):
+            return TradeInfo(
+                success=False, 
+                error=f"Current open price '{price}' is outside the allowed slippage price '{slippage_price}'"
+                **trade_args
+            )
+        
+        # check commision
+        contract = self.contract.get_contract(code)
+        commision = trade_args["commision"] = contract.commission(
+            engine=self.engine,
+            contract=contract,
+            volume=volume,
+            price=price,
+            type="open",
+            side=side
+        )
         
         # wallet
-        contract = self.contract.get_contract(code)
         margin = contract.calculate_margin(price, volume)
-        if not self.account.wallet.has_enough_cash(margin):
-            return False, f"Not enough available cash, avalable cash: {self.account.wallet.available_cash}, required: {margin}"
+        total_cost = commision.total_fee + margin
 
-        return True, None
+        if not self.account.wallet.has_enough_available_cash(total_cost):
+            return TradeInfo(
+                success=False,
+                error=f"Not enough available cash, avalable cash: {self.account.wallet.cash}, required: {total_cost}",
+                **trade_args
+            )
 
-    def can_close(self, code: str, side: str, price: float, volume: int) -> Tuple[str, Optional[str]]:
-        # check slipage price
-        slip_price = self.get_slippage_price(code, "close", side)
-        if not ((price >= slip_price) if side == "short" else (price <= slip_price)):
-            return False, f"Current open price '{price}' is outside the allowed slippage price '{slip_price}'"
-        
+        return TradeInfo(success=True, **trade_args)
+
+    def try_close(self, code: str, side: str, price: float, volume: Optional[int] = None) -> TradeInfo:
+        trade_args = {"code": code, "type": "open", "side": side, "price": price, "volume": volume}
+
         # check volume
         positions = self.account.portfolio.query(code=code, side=side, status="opened")
         total_volume = sum([p.current_volume for p in positions])
+        if volume is None:
+            volume = trade_args["volume"] = total_volume
         if total_volume < volume:
-            return False, f"Not enough volume, total volume: {total_volume}, required: {volume}"
+            return TradeInfo(
+                success=False, 
+                error=f"Current close price '{price}' is outside the allowed slippage price '{slippage_price}'"
+                **trade_args
+            )
+
+        # check slipage price
+        slippage_price = self.get_slippage_price(code, "close", side)
+        if not ((price >= slippage_price) if side == "short" else (price <= slippage_price)):
+            return TradeInfo(
+                success=False, 
+                error=f"Current close price '{price}' is outside the allowed slippage price '{slippage_price}'"
+                **trade_args
+            )
         
-        return True, None
+        # check commision
+        contract = self.contract.get_contract(code)
+        exchange_fee = broker_fee = 0
+        for position in positions:
+            pos_volume = min(total_volume, position.current_volume)
+            total_volume -= pos_volume
+            commision = contract.commission(
+                engine=self.engine,
+                contract=contract,
+                volume=pos_volume,
+                price=price,
+                type="close",
+                side=side
+            )
+            exchange_fee += commision.exchange_fee
+            broker_fee += commision.broker_fee
+
+        commision = trade_args["commision"] = CommisionInfo(exchange_fee=exchange_fee, broker_fee=broker_fee)
+        
+        return TradeInfo(success=True, **trade_args)
         
     def open(self, code: str, side: str, price: float, volume: int) -> float:
         # check
-        can_open, reason = self.can_open(code, side, price, volume)
-        assert can_open, ValueError(f"Open failed, code: {code}, side: {side}, price: {price}, volume: {volume}, reason: {reason}")
-        
-        # commision
-        contract = self.contract.get_contract(code)
-        open_fee = contract.commission(
-            engine=self,
-            contract=self.contract.get_contract(code),
-            volume=volume,
-            price=price,
-            trade_type="open",
-            position_side=side
-        )
-
-        self.account.portfolio.open(code, side, price, volume)
-
-    def close(self, code: str, side: str, price: float, volume: int) -> float:
         pass
 
-    def get_slippage_price(self, code: str, trade_type: str, side: str) -> float:
+    def close(self, code: str, side: str, price: float, volume: Optional[int] = None) -> float:
+        pass
+
+    def get_slippage_price(self, code: str, type: str, side: str) -> float:
         cur_price = self.kline.get_kline(code).quote[self._cur_price_key]
         slippage = 0 if self._slippage is None else self._slippage
         if (
-            trade_type == "open" and side == "long" or
-            trade_type == "close" and side == "short"
+            type == "open" and side == "long" or
+            type == "close" and side == "short"
         ):
             cur_price += self.contract.get_contract(code).tick_size * slippage
         else:

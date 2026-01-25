@@ -27,19 +27,12 @@ class Portfolio(TObject):
     def closed_positions(self) -> Sequence[Position]:
         return [p for p in self._positions if p.closed]
     
-    def open(self, *args, **kwargs) -> PositionLog:
+    def open(self, *args, **kwargs) -> str:
         position = Position(*args, **kwargs)
         self._positions.append(position)
-        return PositionLog(
-            id=position.id, 
-            type="open", 
-            side=position.side, 
-            price=position.open_price, 
-            volume=position.open_volume, 
-            date=position.open_date
-        )
+        return position.id
 
-    def close(self, id: str, *args, **kwargs) -> PositionLog:
+    def close(self, id: str, *args, **kwargs) -> str:
         idx = next((i for i, pos in enumerate(self._positions) if pos.id == id), -1)
         assert idx < 0, f"position '{id}' not found"
         pos = self._positions[idx]
@@ -47,15 +40,7 @@ class Portfolio(TObject):
         if pos.closed:
             self._positions.pop(idx)
             self._closed_positions.append(pos)
-        return PositionLog(
-            id=pos.id, 
-            type="close", 
-            side=pos.side, 
-            price=close.price, 
-            volume=close.volume,
-            date=close.date, 
-            close_id=close.id
-        )
+        return close.id
 
     def query(
         self, 
