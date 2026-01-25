@@ -5,37 +5,12 @@ from tradegym.engine.core import TObject, PrivateAttr, computed_property
 __all__ = ["Wallet", "WalletLog"]
 
 
-class WalletLog(TObject):
-
-    _reason: str = PrivateAttr()
-    _cash_change: Optional[float] = PrivateAttr(None)
-    _margin_change: Optional[float] = PrivateAttr(None)
-    _unrealized_pnl: Optional[float] = PrivateAttr(None)
-
-    @computed_property 
-    def reason(self) -> str:
-        return self._reason
-
-    @computed_property
-    def cash_change(self) -> Optional[float]:
-        return self._cash_change
-    
-    @computed_property
-    def margin_change(self) -> Optional[float]:
-        return self._margin_change
-    
-    @computed_property
-    def unrealized_pnl(self) -> Optional[float]:
-        return self._unrealized_pnl
-
-
-
 class Wallet(TObject):
 
     _cash: float = PrivateAttr()
     _currency: str = PrivateAttr()
-    _margin: float = PrivateAttr(0.0)
-    _unrealized_pnl: float = PrivateAttr(0.0)
+    _margins: float = PrivateAttr(0.0)
+    _unrealized_pnls: Dict[str, float] = PrivateAttr(default_factory=dict)
 
     @computed_property
     def cash(self) -> float:
@@ -50,8 +25,12 @@ class Wallet(TObject):
         return self._margin
     
     @computed_property
+    def unrealized_pnls(self) -> Dict[str, float]:
+        return self._unrealized_pnls
+    
+    @property
     def unrealized_pnl(self) -> float:
-        return self._unrealized_pnl
+        return sum(self._unrealized_pnls.values())
     
     @property
     def available_cash(self) -> float:
@@ -60,17 +39,15 @@ class Wallet(TObject):
     def has_enough_available_cash(self, amount: float) -> bool:
         return self.cash + self._unrealized_pnl >= amount
     
-    def adjust(
-        self, 
-        reason: str, 
-        cash_change: Optional[float] = None, 
-        margin_change: Optional[float] = None, 
-        unrealized_pnl: Optional[float] = None,
-    ):
-        if cash_change is not None:
-            self._cash += cash_change
-        if margin_change is not None:
-            self._margin += margin_change
-        if unrealized_pnl is not None:
-            self._unrealized_pnl = unrealized_pnl
-        return WalletLog(reason=reason, cash_change=cash_change, margin_change=margin_change, unrealized_pnl=unrealized_pnl)
+    def allocate_margin(self, margin: float, commision: float):
+        self._cash -= (margin + commision)
+        self._margin += margin
+
+    def release_margin(self, margin: float, pnl: float, commision: float):
+        self._cash += (margin + pnl - commision)
+        self._margin -= margin
+
+    def update_unrealized_pnl(self, code: str, pnl: float):
+        self._unrealized_pnls[code] = pnl
+        if pnl == 0:
+            del self._unrealized_pnls[code]

@@ -1,8 +1,9 @@
-from typing import Optional, Sequence
+from typing import Optional
 from .core import PluginManager
 from .account import Account
 from .contract import ContractManager
 from .kline import KLineManager
+from .trader import Trader, TradeInfo
 from .utility import Clock
 
 
@@ -16,9 +17,10 @@ class TradeEngine(PluginManager):
         account: Account,
         contract: ContractManager,
         kline: KLineManager,
+        trader: Trader,
         clock: Optional[Clock] = None
     ):
-        self.add_plugins([p for p in [account, contract, kline, clock] if p is not None])
+        self.add_plugins([p for p in [account, contract, kline, trader, clock] if p is not None])
 
     @property
     def clock(self) -> Clock:
@@ -36,8 +38,12 @@ class TradeEngine(PluginManager):
     def kline(self) -> KLineManager:
         return self.get_or_create_plugin('kline')
     
-    def open(self, code: str, side: str, price: float, volume: int) -> None:
-        pass
+    @property
+    def trader(self) -> Trader:
+        return self.get_or_create_plugin('trader')
+    
+    def open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
+        return self.trader.open(code, side, price, volume)
 
-    def close(self, code: str, side: str, price: float, volume: int) -> None:
-        pass
+    def close(self, code: str, side: str, price: float, volume: Optional[int] = None) -> TradeInfo:
+        return self.trader.close(code, side, price, volume)

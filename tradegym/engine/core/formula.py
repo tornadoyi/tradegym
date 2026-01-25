@@ -25,6 +25,18 @@ class Formula(object):
         return direction * (last_price - open_price) * volume * multiplier
     
     @staticmethod
-    def position_realized_pnl(open_price: float, close_price: float, volume: int, side: str, multiplier: int, commision: float) -> float:
+    def position_realized_pnl(open_price: float, close_price: float, volume: int, side: str, multiplier: int) -> float:
         direction = +1 if side == "long" else -1
-        return direction * (close_price - open_price) * volume * multiplier - commision
+        return direction * (close_price - open_price) * volume * multiplier
+    
+
+    # ====================================== Trade ====================================== #
+    @staticmethod
+    def trade_slippage_price(slippage: float, last_price: float, type: str, side: str, tick_size: float):
+        if (
+            type == "open" and side == "long" or
+            type == "close" and side == "short"
+        ):
+            return last_price + tick_size * slippage
+        else:
+            return last_price - tick_size * slippage
