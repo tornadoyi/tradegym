@@ -13,16 +13,29 @@ __all__ = [
 ]
 
 
-class computed_property(property):
-    def __init__(self, func=None, **kwargs):
-        self.kwargs = kwargs
-        super().__init__(func)
 
-    def __call__(self, func):
-        return computed_field(
-            super().__call__(func),
-            **self.kwargs
-        )
+class computed_property(property):
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None, **kwargs):
+        super().__init__(fget, fset, fdel, doc)
+        self._computed_kwargs = kwargs
+        self._registered = False  
+
+    def __set_name__(self, owner, name):
+        if self._registered:
+            return
+        self._registered = True
+
+        cf = computed_field(self, **self._computed_kwargs)
+        setattr(owner, name, cf)
+
+    def getter(self, fget):
+        return type(self)(fget, self.fset, self.fdel, self.__doc__, **self._computed_kwargs)
+
+    def setter(self, fset):
+        return type(self)(self.fget, fset, self.fdel, self.__doc__, **self._computed_kwargs)
+
+    def deleter(self, fdel):
+        return type(self)(self.fget, self.fset, fdel, self.__doc__, **self._computed_kwargs)
 
 
 class NotExist:
