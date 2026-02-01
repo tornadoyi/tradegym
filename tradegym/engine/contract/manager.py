@@ -16,7 +16,8 @@ class ContractManager(Plugin):
     def __init__(self, contracts: Optional[List[Contract]] = None):
         super().__init__()
         if contracts is not None:
-            for contract in self._contracts:
+            for arg in contracts:
+                contract = arg if isinstance(arg, Contract) else Contract.from_dict(arg)
                 self.add_contract(contract)
 
     @computed_property

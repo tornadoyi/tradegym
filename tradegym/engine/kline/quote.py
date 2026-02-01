@@ -13,5 +13,5 @@ class Quote(TObject):
     model_config = ConfigDict(extra='allow')
 
     @property
-    def datatime(self) -> pd.Timestamp:
+    def datetime(self) -> pd.Timestamp:
         return self._containers["datetime"]

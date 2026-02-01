@@ -1,10 +1,10 @@
-from typing import Optional, Sequence, Dict, ClassVar
+from typing import Optional, ClassVar
 from tradegym.engine.core import Plugin, PrivateAttr, computed_property
 from .portfolio import Portfolio
 from .wallet import Wallet
 
 
-__all__ = ["Account", "AccountLog"]
+__all__ = ["Account"]
 
 
 class Account(Plugin):

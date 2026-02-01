@@ -1,8 +1,6 @@
 from typing import ClassVar, Optional
 from tradegym.engine.core import PrivateAttr, computed_property
-from tradegym.engine.engine import TradeEngine
-from tradegym.engine.account import Position
-from .contract import Contract
+from tradegym.engine.contract.contract import Contract
 from .commission import Commission, CommisionInfo
 
 
@@ -83,12 +81,12 @@ class CTPCommission(Commission):
 
     def __call__(
         self,
-        engine: TradeEngine,
+        engine: "TradeEngine",
         contract: Contract,
         price: float,
         volume: int,
         type: str,        # open/close
-        position: Optional[Position] = None,
+        position: Optional["Position"] = None,
     ) -> CommisionInfo:
         # notional
         notional = contract.calculate_notional_value(price, volume)
@@ -121,3 +119,6 @@ class CTPCommission(Commission):
             exchange_fee=exchange_fee,
             broker_fee=broker_fee,
         )
+    
+
+Commission.register(CTPCommission)

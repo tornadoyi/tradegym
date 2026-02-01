@@ -1,53 +1,26 @@
 from typing import Optional, Dict, Sequence
+from tradegym.engine import TradeInfo, TObject, computed_property, PrivateAttr
 import gymnasium as gym
 
 
 __all__ = ['Observation', 'ObservationSpace']
 
 
-class Observation(object):
-    def __init__(
-        self,
-        action: Optional[Dict] = None,
-        stdout: Optional[str] = None,
-        stderr: Optional[str] = None,
-        error: Optional[Exception] = None,
-        effected_tasks: Optional[Sequence[str]] = None
-    ):
-        self._action = action
-        self._stdout = stdout
-        self._stderr = stderr
-        self._error = error
-        self._effected_tasks = effected_tasks
+class Observation(TObject):
+    _error: Optional[str] = PrivateAttr(None)
+    _trade_info: Optional[TradeInfo] = PrivateAttr(None)
 
     @property
-    def action(self) -> Optional[Dict]:
-        return self._action
+    def success(self) -> bool:
+        return self._trade_info.success()
 
-    @property
-    def stdout(self) -> Optional[str]:
-        return self._stdout
-
-    @property
-    def stderr(self) -> Optional[str]:
-        return self._stderr
-
-    @property
-    def error(self) -> Optional[Exception]:
+    @computed_property
+    def error(self) -> Optional[str]:
         return self._error
-
-    @property
-    def effected_tasks(self) -> Optional[Sequence[str]]:
-        return self._effected_tasks
-
-    @property
-    def output(self) -> str:
-        outs = []
-        if self._stdout is not None:
-            outs.append(self.stdout)
-        if self._stderr is not None:
-            outs.append(self.stderr)
-        return "\n".join(outs)
+    
+    @computed_property
+    def trade_info(self) -> Optional[TradeInfo]:
+        return self._trade_info
 
 
 

@@ -2,14 +2,14 @@ from typing import Optional, Dict
 from tradegym.engine.core import TObject, PrivateAttr, computed_property
 
 
-__all__ = ["Wallet", "WalletLog"]
+__all__ = ["Wallet"]
 
 
 class Wallet(TObject):
 
     _cash: float = PrivateAttr()
-    _currency: str = PrivateAttr()
-    _margins: float = PrivateAttr(0.0)
+    _currency: str = PrivateAttr("CNY")
+    _margin: float = PrivateAttr(0.0)
     _unrealized_pnls: Dict[str, float] = PrivateAttr(default_factory=dict)
 
     @computed_property
@@ -34,10 +34,10 @@ class Wallet(TObject):
     
     @property
     def available_cash(self) -> float:
-        return self.cash + self._unrealized_pnl
+        return self.cash + self.unrealized_pnl
     
     def has_enough_available_cash(self, amount: float) -> bool:
-        return self.cash + self._unrealized_pnl >= amount
+        return self.cash + self.unrealized_pnl >= amount
     
     def allocate_margin(self, margin: float, commision: float):
         self._cash -= (margin + commision)

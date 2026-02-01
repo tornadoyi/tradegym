@@ -1,10 +1,12 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, TypeVar
 from tradegym.engine.core import TObject, PrivateAttr, computed_property, Formula
-from .commission import Commission, FreeCommission
+from .commision import Commission, FreeCommission
 
 
 __all__ = ["Contract"]
 
+
+CommissionType = TypeVar("CommissionType", bound=Commission)
 
 
 class Contract(TObject):
@@ -15,8 +17,13 @@ class Contract(TObject):
     _multiplier: int = PrivateAttr()
     _margin_rate: float = PrivateAttr()
     _tick_size: float = PrivateAttr()
-    _commission: Optional[Commission] = PrivateAttr(default_factory=FreeCommission)
+    _commission: CommissionType = PrivateAttr(default_factory=FreeCommission)
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if isinstance(self._commission, dict):
+            self._commission = Commission.make(**self._commission)
+
     @computed_property
     def code(self) -> str:
         return self._code
@@ -42,7 +49,7 @@ class Contract(TObject):
         return self._tick_size
     
     @computed_property
-    def commission(self) -> Commission:
+    def commission(self) -> CommissionType:
         return self._commission
     
     def calculate_notional_value(self, price: float, volume: int) -> float:

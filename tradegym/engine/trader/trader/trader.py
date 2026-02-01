@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from tradegym.engine.core import Plugin, TObject, PrivateAttr, computed_property
 from tradegym.engine.contract import ContractManager, CommisionInfo
 from tradegym.engine.kline import KLineManager
-from tradegym.engine.account import Account, AccountLog
+from tradegym.engine.account import Account
 from tradegym.engine.utility import Clock
 
 
@@ -27,7 +27,6 @@ class TradeInfo(TObject):
     _volumes: Optional[List[int]] = PrivateAttr(None)
     _positions: Optional[List[str]] = PrivateAttr(None)
     _closes: Optional[List[str]] = PrivateAttr(None)
-    _account: Optional[AccountLog] = PrivateAttr(None)
 
     @computed_property
     def date(self) -> datetime:
@@ -84,11 +83,6 @@ class TradeInfo(TObject):
     @computed_property  
     def volumes(self) -> Optional[List[int]]:
         return self._volumes
-
-    @computed_property
-    def account(self) -> Optional[AccountLog]:
-        return self._account
-
 
 
 

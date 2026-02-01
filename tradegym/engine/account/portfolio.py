@@ -1,6 +1,6 @@
 from typing import Optional, Sequence, Union, List
 from tradegym.engine.core import TObject, PrivateAttr, computed_property
-from .position import Position, PositionLog
+from .position import Position
 
 
 __all__ = ["Portfolio"]

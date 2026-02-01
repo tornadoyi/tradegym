@@ -10,14 +10,16 @@ __all__ = ['Clock']
 class Clock(Plugin):
     Name: ClassVar[str] = 'clock'
 
-    _now: datetime = PrivateAttr()
+    _now: datetime = PrivateAttr(datetime.now())
+    _step: timedelta = PrivateAttr(timedelta(seconds=1))
 
     @computed_property
     def now(self) -> datetime:
         return self._now
     
-    def tick(self, delta: timedelta) -> None:
-        self._now += delta
+    def tick(self) -> datetime:
+        self._now += self._step
+        return self._now
     
     
 Plugin.register(Clock)

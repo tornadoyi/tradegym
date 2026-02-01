@@ -1,5 +1,5 @@
 from typing import Optional, Tuple
-from tradegym.engine.core import PrivateAttr, computed_property, Formula
+from tradegym.engine.core import PrivateAttr, computed_property, Formula, Plugin
 from .trader import Trader, TradeInfo
 
 
@@ -9,13 +9,13 @@ __all__ = ["CTPTrader"]
 
 class CTPTrader(Trader):
 
-    _cur_price_key: str = PrivateAttr()
+    _last_price_key: str = PrivateAttr()
     _slippage: Optional[float] = PrivateAttr(None)
 
 
     @computed_property
-    def cur_price_key(self) -> str:
-        return self._cur_price_key
+    def last_price_key(self) -> str:
+        return self._last_price_key
 
     @computed_property
     def slippage(self) -> Optional[float]:
@@ -165,3 +165,7 @@ class CTPTrader(Trader):
             side=side,
             tick_size=self.contract.get_contract(code).tick_size
         )
+
+
+
+Plugin.register(CTPTrader)

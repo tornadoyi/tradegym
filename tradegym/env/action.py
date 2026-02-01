@@ -1,62 +1,52 @@
-from typing import Optional, Dict, Any, Type, List
+from typing import Optional, Dict, Type, List, ClassVar
 import sys
-import traceback
-
 from abc import ABC, abstractmethod
 import gymnasium as gym
+from tradegym.engine import TObject, TradeEngine, computed_property, PrivateAttr, TradeInfo
 
 
-__all__ = ['Action', 'ActionSpace', 'ActionCallResult', 'NoOp']
+__all__ = ['Action', 'ActionSpace', 'ActionResult', 'OpenAction', 'CloseAction', 'NoOpAction']
 
 
-@dataclass
-class ActionCallResult(object):
-    input: "Action"
-    stdout: Optional[str] = None
-    stderr: Optional[str] = None
-    error: Optional[Exception] = None
+class ActionResult(TObject):
+    _error: Optional[str] = PrivateAttr(None)
+    _trade_info: Optional[TradeInfo] = PrivateAttr(None)
+
+    @property
+    def success(self) -> bool:
+        return self._error is None
+
+    @computed_property
+    def error(self) -> Optional[str]:
+        return self._error
+    
+    @computed_property
+    def trade_info(self) -> Optional[TradeInfo]:
+        return self._trade_info
 
 
 
-class Action(ABC):
+class Action(TObject, ABC):
     __ACTIONS__: Dict[str, Type["Action"]] = {}
 
-    Name: str
-    Description: str
+    Name: ClassVar[str]
 
     @property
     def name(self) -> str:
         return self.Name
 
-    @property
-    def description(self) -> str:
-        return self.Description
-
-    def __call__(self, *args, **kwds) -> ActionCallResult:
-        result = ActionCallResult(input=self)
+    def __call__(self, engine: TradeEngine) -> ActionResult:
         try:
-            result.stdout = self.execute(*args, **kwds)
+            trade_info = self.execute(engine)
         except Exception as e:
-            exc_type, exc_value, exc_tb = sys.exc_info()
-            result.stderr = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
-            result.error = e
-        return result
+            return ActionResult(error=str(e))
 
+        return ActionResult(trade_info=trade_info)
+    
     @abstractmethod
-    def execute(self, *args, **kwds) -> str:
+    def execute(self, engine: TradeEngine) -> Optional[TradeInfo]:
         pass
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {'name': self.Name}
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Action":
-        def make(name: str, **kwargs):
-            return Action.__ACTIONS__[name](**kwargs)
-        name = data.get('name', None)
-        if name not in Action.__ACTIONS__:
-            raise KeyError(f"action '{name}' not registered")
-        return make(**data)
 
     @staticmethod
     def register(atype: Type["Action"]):
@@ -70,15 +60,58 @@ class Action(ABC):
 
 
 
-class NoOp(Action):
-    Name = 'noop'
-    Description = 'no operation'
+class TradeAction(Action):
+    _code: str = PrivateAttr()
+    _side: str = PrivateAttr()
+    _price: float = PrivateAttr()
+    _volume: Optional[int] = PrivateAttr(None)
 
-    def execute(self, *args, **kwds):
+    @computed_property
+    def code(self) -> str:
+        return self._code
+    
+    @computed_property
+    def side(self) -> str:
+        return self._side
+    
+    @computed_property
+    def price(self) -> float:
+        return self._price
+    
+    @computed_property
+    def volume(self) -> Optional[int]:
+        return self._volume
+    
+
+class OpenAction(TradeAction):
+    Name: ClassVar[str] = 'open'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert self.volume is not None
+
+    def execute(self, engine: TradeEngine) -> TradeInfo:
+        return engine.open(self.code, self.side, self.price, self.volume)
+    
+
+class CloseAction(TradeAction):
+    Name: ClassVar[str] = 'close'
+
+    def execute(self, engine: TradeEngine) -> TradeInfo:
+        return engine.close(self.code, self.side, self.price, self.volume)
+
+
+class NoOpAction(Action):
+    Name: ClassVar[str] = 'noop'
+
+    def __call__(self, engine: TradeEngine):
         return
 
 
-Action.register(NoOp)
+Action.register(NoOpAction)
+Action.register(OpenAction)
+Action.register(CloseAction)
+
 
 
 class ActionSpace(gym.spaces.Space):
@@ -86,7 +119,7 @@ class ActionSpace(gym.spaces.Space):
         super().__init__(shape=None, dtype=Action)
 
     def sample(self) -> Action:
-        return NoOp()
+        return NoOpAction()
 
     def contains(self, x):
         return isinstance(x, tuple(Action, dict))

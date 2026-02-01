@@ -1,8 +1,9 @@
-from typing import Optional, Sequence, Dict, Type, Union, ClassVar
-from .object import TObject
+from typing import Optional, Sequence, Dict, Type, Union, ClassVar, List, TypeVar
+from .object import TObject, computed_property, PrivateAttr
 
 
 __all__ = ["Plugin", "PluginManager"]
+
 
 
 class Plugin(TObject):
@@ -12,7 +13,7 @@ class Plugin(TObject):
     Name: ClassVar[str]
     Depends: ClassVar[Sequence[str]] = []
 
-    @property
+    @computed_property
     def name(self) -> str:
         return self.Name
     
@@ -30,14 +31,6 @@ class Plugin(TObject):
 
     def setup(self, manager: "PluginManager"):
         setattr(self, "__plugin_manager__", manager)
-
-    def to_dict(self) -> Dict:
-        return {'name': self.name}
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "Plugin":
-        _from = lambda name, **kwds: cls.model_validate(**kwds)
-        return _from(**data)
     
     @staticmethod
     def register(type: Type["Plugin"]):
@@ -53,16 +46,21 @@ class Plugin(TObject):
         return cls.from_dict(data=kwargs)
 
 
+PluginType = TypeVar("T", bound=Plugin)
 
 class PluginManager(TObject):
 
-    @property
-    def plugins(self) -> Dict[str, Plugin]:
-        plugins = getattr(self, "__plugins__", None)
-        if plugins is None:
-            plugins = {}
-            setattr(self, "__plugins__", plugins)
-        return plugins
+    _plugins: List[PluginType] = PrivateAttr(default_factory=list)
+    _plugin_map: Dict[str, PluginType] = PrivateAttr(default_factory=dict)
+
+    def __init__(self, plugins: Optional[Sequence[Union[Plugin, Dict]]] = None):
+        super().__init__()
+        plugins = [plg if isinstance(plg, Plugin) else Plugin.make(**plg) for plg in (plugins or [])]
+        self.add_plugins(plugins)
+
+    @computed_property
+    def plugins(self) -> List[PluginType]:
+        return self._plugins
     
     def get_or_create_plugin(self, name: str) -> Plugin:
         plugin = self.find_plugin(name)
@@ -74,7 +72,7 @@ class PluginManager(TObject):
         return plugin
 
     def find_plugin(self, name: str) -> Optional[Plugin]:
-        return self.plugins.get(name, None)
+        return self._plugin_map.get(name, None)
 
     def add_plugin(self, plugin: Union[str, Plugin]) -> Plugin:
         return self.add_plugins([plugin])[0]
@@ -92,7 +90,6 @@ class PluginManager(TObject):
                 raise ValueError(f"Add repeated plugin '{pname}'")
             plg_map[pname] = p if isinstance(p, Plugin) else Plugin.make(p)
 
-
         depends = set()
         def dfs_add(name: str):
             ptype = Plugin.__PLUGINS__.get(name, None)
@@ -100,7 +97,7 @@ class PluginManager(TObject):
 
             # add dependencies
             for dp_name in ptype.Depends:
-                if dp_name in self.plugins:
+                if dp_name in self._plugin_map:
                     continue
                 
                 # circular check
@@ -112,26 +109,17 @@ class PluginManager(TObject):
                 dfs_add(dp_name)
 
             # add plugin
-            assert name not in self.plugins, ValueError(f"Plugin '{name}' already exists")
+            assert name not in self._plugin_map, ValueError(f"Plugin '{name}' already exists")
             plugin = plg_map.get(name, None)
             plugin = plugin if plugin is not None else Plugin.make(name)
-            self.plugins[name] = plugin
+            self._plugins.append(plugin)
+            self._plugin_map[name] = plugin
             plugin.setup(self)
-
 
         # add plugins
         for name in plg_map.keys():
-            if name in self.plugins:
+            if name in self._plugin_map:
                 continue
             dfs_add(name)
 
         return [self.get_plugin(name) for name in plg_map.keys()]
-
-    def to_dict(self):
-        return {plugin.name: plugin.to_dict() for plugin in self.plugins.values()}
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "PluginManager":
-        plugins = {k: Plugin.make(k, **v) for k, v in data.items()}
-        return cls(**plugins)
-    

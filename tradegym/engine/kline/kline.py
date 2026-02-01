@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Dict, Callable
 import numpy as np
 from datetime import datetime, timedelta
 import pandas as pd
@@ -12,31 +12,33 @@ __all__ = ["KLine"]
 
 class KLine(TObject):
 
-    _name: str = PrivateAttr()
-    _dataframe: pd.DataFrame = PrivateAttr()
-    _timestep: timedelta = PrivateAttr()
+    _code: str = PrivateAttr()
+    _timestep: float = PrivateAttr()
     _cusor: int = PrivateAttr(0)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._dataframe = self.normalize_dataframe(self._dataframe)
+    _dataframe: pd.DataFrame = PrivateAttr()
 
-    @computed_property
-    def name(self) -> str:
-        return self._name
-
-    @computed_property
-    def dataframe(self) -> pd.DataFrame:
-        return self._dataframe
     
     @computed_property
-    def columns(self) -> Sequence[str]:
-        return self._dataframe.columns
+    def code(self) -> str:
+        return self._code
     
+    @computed_property
+    def timestep(self) -> float:
+        return self._timestep
+
     @computed_property
     def cursor(self) -> int:
         return self._cusor
     
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        return self._dataframe
+
+    @property
+    def columns(self) -> Sequence[str]:
+        return self._dataframe.columns
+
     @property
     def quote(self) -> Quote:
         return Quote.from_dict(self._dataframe.iloc[self._cusor].to_dict())
@@ -50,6 +52,11 @@ class KLine(TObject):
     
     def __getitem__(self, index: int) -> pd.Series:
         return self._dataframe.iloc[index]
+    
+    def setup(self, dataframe: pd.DataFrame):
+        td = self._dataframe.iloc[1]["datetime"] - self._dataframe.iloc[0]["datetime"]
+        assert td.total_seconds() == self._timestep, ValueError(f"timestep mismatch, expect {td.total_seconds()}, got {self._timestep}")
+        self._dataframe = self.normalize_dataframe(dataframe)
     
     def locate_cursor(self, datetime: Union[datetime, str, pd.Timestamp]):
         ctime = pd.to_datetime(datetime)
@@ -69,14 +76,9 @@ class KLine(TObject):
         if idx < 0 or (ctime.to_numpy() - self._dataframe[idx]) > self._timestep:
             raise ValueError(f"datetime '{datetime}' is out of range in kline")
         self._cusor = idx
-    
-    def next(self):
-        if self.terminated:
-            raise ValueError("Kline is terminated")
-        self._cusor += 1
 
     @staticmethod
-    def normalize_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+    def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         df['datetime'] = pd.to_datetime(df['datetime'])
         df = df.sort_values('datetime', ascending=True)
         df.columns = df.columns.str.split('.').str[-1]

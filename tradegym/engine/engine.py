@@ -1,5 +1,5 @@
-from typing import Optional
-from .core import PluginManager
+from typing import Optional, Sequence
+from .core import PluginManager, Plugin
 from .account import Account
 from .contract import ContractManager
 from .kline import KLineManager
@@ -12,15 +12,18 @@ __all__ = ["TradeEngine"]
 
 
 class TradeEngine(PluginManager):
-    def __init__(
-        self,
-        account: Account,
-        contract: ContractManager,
-        kline: KLineManager,
-        trader: Trader,
-        clock: Optional[Clock] = None
+
+    def __init__(self,
+        account: Optional[Account] = None,
+        contract: Optional[ContractManager] = None,
+        kline: Optional[KLineManager] = None,
+        trader: Optional[Trader] = None,
+        clock: Optional[Clock] = None,
+        plugins: Optional[Sequence[Plugin]] = None,
     ):
-        self.add_plugins([p for p in [account, contract, kline, trader, clock] if p is not None])
+        plugins = [] if plugins is None else plugins
+        plugins += [p for p in [account, contract, kline, trader, clock] if p is not None]
+        super().__init__(plugins=plugins)
 
     @property
     def clock(self) -> Clock:

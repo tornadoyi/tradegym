@@ -14,9 +14,13 @@ def parse_args():
     parser.add_argument('-u', '--user', required=True, help='tq user')
     parser.add_argument('-p', '--password', required=True, help='tq password')
     parser.add_argument('-s', '--symbol', required=True, help='symbol')
-    parser.add_argument('-t', '--type', required=True, choices=['day', 'tick'], help='type of data')
+    parser.add_argument('-t', '--type', required=True, choices=['tick', 'second', 'minute', 'hour', 'day'], help='type of data')
     parser.add_argument('-o', '--output', default=None, help='output file path')
     return parser.parse_args()
+
+
+TYPE_SECS = {"tick": 0, "second": 1, "minute": 60, "hour": 3600, "day": 86400}
+
 
 def main():
     args = parse_args()
@@ -30,10 +34,11 @@ def main():
     start_date = datetime(year=year-1, month=month, day=1) - relativedelta(months=1)
     end_date = datetime(year=year, month=month, day=1) + relativedelta(months=1)
 
+    dur_sec = TYPE_SECS[args.type]
     pbar = tqdm(total=100)
     with closing(TqApi(auth=TqAuth(args.user, args.password))) as api:
         td = DataDownloader(
-            api, symbol_list=args.symbol, dur_sec=(60 if args.type == 'day' else 0),
+            api, symbol_list=args.symbol, dur_sec=dur_sec,
             start_dt=start_date, end_dt=end_date, csv_file_name=output_path
         )
 
