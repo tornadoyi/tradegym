@@ -27,6 +27,10 @@ class Portfolio(TObject):
     def closed_positions(self) -> Sequence[Position]:
         return [p for p in self._positions if p.closed]
     
+    def reset(self):
+        self._positions = []
+        self._closed_positions = []
+
     def open(self, *args, **kwargs) -> str:
         position = Position(*args, **kwargs)
         self._positions.append(position)

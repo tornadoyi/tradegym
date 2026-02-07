@@ -16,7 +16,11 @@ class TestEnv(unittest.TestCase):
         env = TradeEnv.from_dict(data)
         data2 = env.to_dict()
         self.assertDictEqual(data, data2)
-        
+    
+    def test_env_reset(self):
+        data = utils.get_data()
+        env = utils.make_env(cash=10000)
+        env.reset(options={"dataframes": [data['tick'], data['minute']]})
 
 
 if __name__ == '__main__':

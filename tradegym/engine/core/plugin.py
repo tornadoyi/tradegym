@@ -31,6 +31,8 @@ class Plugin(TObject):
 
     def setup(self, manager: "PluginManager"):
         setattr(self, "__plugin_manager__", manager)
+
+    def reset(self) -> None: pass
     
     @staticmethod
     def register(type: Type["Plugin"]):
@@ -123,3 +125,7 @@ class PluginManager(TObject):
             dfs_add(name)
 
         return [self.get_plugin(name) for name in plg_map.keys()]
+    
+    def reset(self):
+        for plugin in self.plugins:
+            plugin.reset()

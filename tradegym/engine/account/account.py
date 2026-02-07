@@ -21,5 +21,9 @@ class Account(Plugin):
     def portfolio(self) -> Portfolio:
         return self._portfolio
     
+    def reset(self) -> None:
+        self._wallet.reset()
+        self._portfolio.reset()
+    
    
 Plugin.register(Account)

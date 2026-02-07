@@ -6,11 +6,20 @@ __all__ = ["Wallet"]
 
 
 class Wallet(TObject):
-
-    _cash: float = PrivateAttr()
+    _init_cash: float = PrivateAttr()
+    _cash: float = PrivateAttr(None)
     _currency: str = PrivateAttr("CNY")
     _margin: float = PrivateAttr(0.0)
     _unrealized_pnls: Dict[str, float] = PrivateAttr(default_factory=dict)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self._cash is None:
+            self._cash = self._init_cash
+
+    @computed_property
+    def init_cash(self) -> float:
+        return self._init_cash
 
     @computed_property
     def cash(self) -> float:
@@ -36,6 +45,11 @@ class Wallet(TObject):
     def available_cash(self) -> float:
         return self.cash + self.unrealized_pnl
     
+    def reset(self):
+        self._cash = self._init_cash
+        self._margin = 0.0
+        self._unrealized_pnls = {}
+
     def has_enough_available_cash(self, amount: float) -> bool:
         return self.cash + self.unrealized_pnl >= amount
     

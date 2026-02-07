@@ -26,6 +26,10 @@ class computed_property(property):
         self._registered = True
 
         cf = computed_field(self.fget, **self._computed_kwargs)
+        if self.fset is not None:
+            def setter(obj, value):
+                return self.fset(obj, value)
+            cf = cf.setter(setter)
         setattr(owner, name, cf)
 
     def getter(self, fget):

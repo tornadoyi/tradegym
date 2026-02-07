@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any, Tuple, Union
 import gymnasium as gym
 from gymnasium.envs.registration import register
-from tradegym.engine import TradeEngine, PrivateAttr, computed_property
+from tradegym.engine import TradeEngine
 from .action import Action, ActionSpace, ActionResult
 from .obs import ObservationSpace, Observation
 
@@ -25,7 +25,17 @@ class TradeEnv(gym.Env):
     def engine(self) -> TradeEngine:
         return self._engine
 
+    def activate(self, *args, **kwargs):
+        self.engine.activate(*args, **kwargs)
+
     def reset(self, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None) -> Tuple[Observation, Dict]:
+        # activate
+        if options is not None:
+            self.activate(**options)
+
+        # reset
+        self.engine.reset()
+
         return Observation(), {}
 
     def step(self, action: Union[Action, Dict]):

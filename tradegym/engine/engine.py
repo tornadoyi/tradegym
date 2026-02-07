@@ -1,4 +1,5 @@
 from typing import Optional, Sequence
+import pandas as pd
 from .core import PluginManager, Plugin
 from .account import Account
 from .contract import ContractManager
@@ -44,7 +45,21 @@ class TradeEngine(PluginManager):
     @property
     def trader(self) -> Trader:
         return self.get_or_create_plugin('trader')
-    
+
+    @property
+    def activated(self) -> bool:
+        return self.kline.activated
+
+    def activate(self, dataframes: Sequence[pd.DataFrame]):
+        self.kline.activate(dataframes)
+
+    def reset(self):
+        # reset clock
+        self.clock.now = self.kline.calc_latest_start_time()
+
+        # reset plugins
+        super().reset()
+
     def open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
         return self.trader.open(code, side, price, volume)
 
