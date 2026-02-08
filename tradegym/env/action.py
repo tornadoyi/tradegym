@@ -26,7 +26,7 @@ class ActionResult(TObject):
 
 
 
-class Action(TObject, ABC):
+class Action(TObject):
     __ACTIONS__: Dict[str, Type["Action"]] = {}
 
     Name: ClassVar[str]
@@ -43,10 +43,8 @@ class Action(TObject, ABC):
 
         return ActionResult(trade_info=trade_info)
     
-    @abstractmethod
     def execute(self, engine: TradeEngine) -> Optional[TradeInfo]:
         pass
-
 
     @staticmethod
     def register(atype: Type["Action"]):
@@ -104,8 +102,8 @@ class CloseAction(TradeAction):
 class NoOpAction(Action):
     Name: ClassVar[str] = 'noop'
 
-    def __call__(self, engine: TradeEngine):
-        return
+    def execute(self, engine: TradeEngine) -> Optional[TradeInfo]:
+        return None
 
 
 Action.register(NoOpAction)

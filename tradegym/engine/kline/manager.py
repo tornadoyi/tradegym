@@ -33,6 +33,10 @@ class KLineManager(Plugin):
         return all(kline.dataframe is not None for kline in self._klines)
     
     @property
+    def terminated(self) -> bool:
+        return any(klines[0].terminated for _, klines in self._code_klines.items())
+    
+    @property
     def clock(self) -> Clock:
         return self.manager.clock
         
@@ -43,7 +47,11 @@ class KLineManager(Plugin):
 
     def reset(self):
         for kline in self._klines:
-            kline.locate_cursor(self.clock.now)
+            kline.reset(self.clock.now)
+
+    def tick(self):
+        for kline in self._klines:
+            kline.tick(self.clock.now)
 
     def add_kline(self, kline: KLine) -> None:
         line_lst = self._code_klines.get(kline.code)

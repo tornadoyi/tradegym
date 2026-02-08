@@ -49,6 +49,10 @@ class TradeEngine(PluginManager):
     @property
     def activated(self) -> bool:
         return self.kline.activated
+    
+    @property
+    def terminated(self) -> bool:
+        return self.kline.terminated
 
     def activate(self, dataframes: Sequence[pd.DataFrame]):
         self.kline.activate(dataframes)
@@ -59,6 +63,10 @@ class TradeEngine(PluginManager):
 
         # reset plugins
         super().reset()
+
+    def tick(self):
+        self.clock.tick()
+        self.kline.tick()
 
     def open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
         return self.trader.open(code, side, price, volume)

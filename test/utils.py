@@ -1,5 +1,5 @@
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 import pandas as pd
 from tradegym.env import TradeEnv
 from tradegym.engine import Account, Wallet, Contract, ContractManager, KLineManager, CTPTrader, KLine, CTPCommission, Clock
@@ -33,34 +33,9 @@ __DATA__ = None
 def load_data():
     global __DATA__
     if __DATA__ is None:
-        __DATA__ = {
-            'tick': pd.read_csv(os.path.join(CUR_DIR, "data", "SHFE.rb2605.0805am.tick.csv")),
-            'minute': pd.read_csv(os.path.join(CUR_DIR, "data", "SHFE.rb2605.8m.minute.csv"))
-        }
-    return {k:v.copy(deep=True) for k, v in __DATA__.items()}
+        __DATA__ = [
+            pd.read_csv(os.path.join(CUR_DIR, "data", "SHFE.rb2605.0805am.tick.csv")),
+            pd.read_csv(os.path.join(CUR_DIR, "data", "SHFE.rb2605.8m.minute.csv"))
+        ]
+    return [v.copy(deep=True) for v in __DATA__]
 
-
-def make_env(cash=10000):
-    return TradeEnv(
-        account=Account(wallet=Wallet(cash)),
-        contract=ContractManager([CONTRACRS["rb2605"]]),
-        kline=KLineManager([
-            KLine(code="rb2605", timestep=0.5),
-            KLine(code="rb2605", timestep=60.0),
-        ]),
-        trader=CTPTrader(last_price_key="last_price"),
-        clock=Clock(step=timedelta(seconds=0.5))
-    )
-
-
-def get_data(tick_range=None, minute_range=None):
-    data = load_data()
-    if tick_range:
-        df = data["tick"]
-        data["tick"] = df[(df['datetime'] >= tick_range[0]) & (df['datetime'] <= tick_range[1])]
-
-    if minute_range:
-        df = data["minute"]
-        data["minute"] = df[(df['datetime'] >= minute_range[0]) & (df['datetime'] <= minute_range[1])]
-    
-    return data

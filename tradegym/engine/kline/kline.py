@@ -57,27 +57,29 @@ class KLine(TObject):
         self._dataframe = self.normalize_dataframe(dataframe)
         td = self._dataframe.iloc[1]["datetime"] - self._dataframe.iloc[0]["datetime"]
         assert td.total_seconds() == self._timestep, ValueError(f"timestep mismatch for code '{self._code}', expect {self._timestep}, got {td.total_seconds()}")
-        
-    def locate_cursor(self, datetime: Union[datetime, str, pd.Timestamp]):
-        breakpoint()
-        timestep = pd.Timedelta(seconds=self._timestep)
+    
+    def reset(self, datetime: Union[datetime, str, pd.Timestamp]):
         ctime = pd.to_datetime(datetime)
-        if ctime == self._dataframe.iloc[self._cusor]['datetime']:
+        exact_match = self._dataframe.index[self._dataframe['datetime'] == ctime]
+        if len(exact_match) > 0:
+            self._cusor = exact_match[0]
             return
+        mask = (self._dataframe['datetime'] < ctime)
+        if not mask.any():
+            raise ValueError(f"datetime '{datetime}' is out of range in kline, code: '{self._code}' timestep: '{self._timestep}'")
+        self._cusor = self._dataframe.loc[mask, 'datetime'].idxmax()
+
+    def tick(self, datetime: Union[datetime, str, pd.Timestamp]):
+        ctime = pd.to_datetime(datetime)
         if ctime < self._dataframe.iloc[self._cusor]['datetime']:
             raise ValueError(f"Try to locate a previous datetime '{ctime}', current datetime '{self._dataframe[self._cusor]['datetime']}'")
-        if ctime - self._dataframe.iloc[self._cusor]['datetime'] <= timestep:
+        elif ctime == self._dataframe.iloc[self._cusor]['datetime']:
             return
-        if self._cusor + 1 >= len(self._dataframe):
-            raise ValueError(f"datetime '{datetime}' is out of range in kline, last datetime '{self._dataframe[self._cusor]['datetime']}'")
-        if ctime - self._dataframe.iloc[self._cusor+1]['datetime'] <= timestep:
-            self._cusor += 1
-            return
-        t = np.asarray(self._dataframe['datetime'])
-        idx = np.searchsorted(t, ctime.to_numpy(), side='right') - 1
-        if idx < 0 or ctime - self._dataframe.iloc[idx]["datetime"] > timestep:
-            raise ValueError(f"datetime '{datetime}' is out of range in kline")
-        self._cusor = idx
+        else:
+            if self._cusor + 1 >= len(self._dataframe):
+                return
+            if ctime == self._dataframe.iloc[self._cusor+1]['datetime']:
+                self._cusor += 1
 
     @staticmethod
     def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:

@@ -24,6 +24,10 @@ class TradeEnv(gym.Env):
     @property
     def engine(self) -> TradeEngine:
         return self._engine
+    
+    @property
+    def terminated(self) -> bool:
+        return self.engine.terminated
 
     def activate(self, *args, **kwargs):
         self.engine.activate(*args, **kwargs)
@@ -39,6 +43,9 @@ class TradeEnv(gym.Env):
         return Observation(), {}
 
     def step(self, action: Union[Action, Dict]):
+        if self.terminated:
+            raise RuntimeError("Can not step a terminated environment")
+
         # wrap action
         if isinstance(action, dict):
             action = Action.from_dict(action)
@@ -46,9 +53,12 @@ class TradeEnv(gym.Env):
         # run action
         result: ActionResult = action(self.engine)
 
+        # tick
+        self.engine.tick()
+
         # return
         observation = Observation.from_dict(result.to_dict())
-        return observation, 0.0, False, False, {}
+        return observation, 0.0, self.engine.terminated, False, {}
 
     def copy(self) -> "TradeEnv":
         return type(self).from_dict(self.to_dict())
