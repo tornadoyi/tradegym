@@ -1,5 +1,5 @@
-from typing import Optional, Dict, Sequence
-from tradegym.engine import TradeInfo, TObject, computed_property, PrivateAttr
+from typing import Optional
+from tradegym.engine import TradeInfo, TObject, Field
 import gymnasium as gym
 
 
@@ -7,20 +7,12 @@ __all__ = ['Observation', 'ObservationSpace']
 
 
 class Observation(TObject):
-    _error: Optional[str] = PrivateAttr(None)
-    _trade_info: Optional[TradeInfo] = PrivateAttr(None)
+    error: Optional[str] = Field(None)
+    trade_info: Optional[TradeInfo] = Field(None)
 
     @property
     def success(self) -> bool:
-        return self._trade_info.success()
-
-    @computed_property
-    def error(self) -> Optional[str]:
-        return self._error
-    
-    @computed_property
-    def trade_info(self) -> Optional[TradeInfo]:
-        return self._trade_info
+        return self.trade_info.success
 
 
 

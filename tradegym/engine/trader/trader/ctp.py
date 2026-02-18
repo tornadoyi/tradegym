@@ -1,5 +1,5 @@
 from typing import Optional, Tuple
-from tradegym.engine.core import PrivateAttr, computed_property, Formula, Plugin
+from tradegym.engine.core import Field, Formula
 from .trader import Trader, TradeInfo
 
 
@@ -9,17 +9,8 @@ __all__ = ["CTPTrader"]
 
 class CTPTrader(Trader):
 
-    _last_price_key: str = PrivateAttr()
-    _slippage: Optional[float] = PrivateAttr(None)
-
-
-    @computed_property
-    def last_price_key(self) -> str:
-        return self._last_price_key
-
-    @computed_property
-    def slippage(self) -> Optional[float]:
-        return self._slippage
+    last_price_key: str = Field()
+    slippage: Optional[float] = Field(None)
     
     def try_open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
         trade_args = {"date": self.clock.now, "code": code, "type": "open", "side": side, "price": price, "volume": volume}
@@ -36,7 +27,7 @@ class CTPTrader(Trader):
         
         # check commision
         contract = self.contract.get_contract(code)
-        commision = contract.commission(
+        commission = contract.commission(
             engine=self.engine,
             contract=contract,
             volume=volume,
@@ -44,11 +35,11 @@ class CTPTrader(Trader):
             type="open",
             side=side
         )
-        trade_args["commision"] = [commision]
+        trade_args["commissions"] = [commission]
         
         # wallet
         margin = trade_args["margin"] = contract.calculate_margin(price, volume)
-        total_cost = commision.total_fee + margin
+        total_cost = commission.total_fee + margin
         if not self.account.wallet.has_enough_available_cash(total_cost):
             return TradeInfo(
                 success=False,
@@ -111,18 +102,18 @@ class CTPTrader(Trader):
         info = self.try_open(code, side, price, volume)
         if not info.success:
             return info
-        trade_args = info.to_dict()
+        trade_args = info.serialize()
 
         # apply portfolio
         pos_id = self.account.portfolio.open(
-            code, side=side, price=price, volume=volume, 
+            code=code, side=side, price=price, volume=volume, 
             commission=info.commissions[0].total_fee, margin=info.margin, date=info.date
         )
         trade_args["positions"] = [pos_id]
 
         # apply wallet
         self.account.wallet.allocate_margin(margin=info.margin, commision=info.commissions[0].total_fee)
-        return TradeInfo(**trade_args)
+        return TradeInfo.deserialize(trade_args)
 
     def close(self, code: str, side: str, price: float, volume: Optional[int] = None) -> float:
         # check
@@ -132,7 +123,7 @@ class CTPTrader(Trader):
         assert info.positions is not None, ValueError("Invalid trade info, positions is None")
         assert info.commissions is not None, ValueError("Invalid trade info, commissions is None")
         assert info.volumes is not None, ValueError("Invalid trade info, volumes is None")
-        trade_args = info.to_dict()
+        trade_args = info.serialize()
 
         contract = self.contract.get_contract(code)
         
@@ -159,13 +150,10 @@ class CTPTrader(Trader):
 
     def get_slippage_price(self, code: str, type: str, side: str) -> float:
         return Formula.trade_slippage_price(
-            slippage=self._slippage,
-            last_price=self.kline.get_kline(code).quote[self._last_price_key],
+            slippage=0 if self.slippage is None else self.slippage,
+            last_price=self.kline.get_kline(code).quote[self.last_price_key],
             type=type,
             side=side,
             tick_size=self.contract.get_contract(code).tick_size
         )
 
-
-
-Plugin.register(CTPTrader)

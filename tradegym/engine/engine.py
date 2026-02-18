@@ -59,7 +59,7 @@ class TradeEngine(PluginManager):
 
     def reset(self):
         # reset clock
-        self.clock.now = self.kline.calc_latest_start_time()
+        self.clock.set_now(self.kline.calc_latest_start_time())
 
         # reset plugins
         super().reset()

@@ -1,6 +1,6 @@
 from typing import Optional, Dict, ClassVar, Type
 from abc import ABC, abstractmethod
-from tradegym.engine.core import TObject, PrivateAttr, computed_property
+from tradegym.engine.core import TObject, Field, computed_field
 
 
 __all__ = [
@@ -12,20 +12,12 @@ __all__ = [
 
 
 class CommisionInfo(TObject):
-    _exchange_fee: Optional[float] = PrivateAttr(None)
-    _broker_fee: Optional[float] = PrivateAttr(None)
+    exchange_fee: Optional[float] = Field(None)
+    broker_fee: Optional[float] = Field(None)
 
-    @computed_property
+    @property
     def total_fee(self) -> float:
-        return (self._exchange_fee or 0) + (self._broker_fee or 0)
-    
-    @computed_property
-    def exchange_fee(self) -> Optional[float]:
-        return self._exchange_fee
-    
-    @computed_property
-    def broker_fee(self) -> Optional[float]:
-        return self._broker_fee
+        return (self.exchange_fee or 0) + (self.broker_fee or 0)
     
 
 
@@ -33,6 +25,10 @@ class Commission(TObject, ABC):
     Name: ClassVar[str]
 
     __COMMISIONS__: ClassVar[Dict[str, Type["Commission"]]] = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Commission.__COMMISIONS__[cls.Name] = cls
 
     @abstractmethod
     def __call__(
@@ -47,33 +43,25 @@ class Commission(TObject, ABC):
     ) -> CommisionInfo:
         pass
 
-    @computed_property
+    @computed_field
+    @property
     def name(self) -> str:
         return self.Name
-    
-    @staticmethod
-    def register(type: Type["Commission"]):
-        assert type.Name is not None, ValueError(f"Register plugin type '{type}' have no name field")
-        if type.Name in Commission.__COMMISIONS__:
-            print(f"Override register commision type '{type.name}'")
-        Commission.__COMMISIONS__[type.Name] = type
 
     @staticmethod
     def make(name: str, **kwargs) -> Optional["Commission"]:
         cls = Commission.__COMMISIONS__.get(name, None)
         assert cls is not None, ValueError(f"Commission type '{name}' is not found")
-        return cls.from_dict(data=kwargs)
+        return cls.deserialize(data=kwargs)
 
 
 
 class FreeCommission(Commission):
-    Name: ClassVar[str] = "free_commission"
+    Name: ClassVar[str] = "free"
 
     def __call__(self, *args, **kwargs) -> CommisionInfo:
         return CommisionInfo(total_fee=0)
     
-
-Commission.register(FreeCommission)
 
 
 

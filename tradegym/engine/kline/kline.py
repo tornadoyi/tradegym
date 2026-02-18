@@ -2,7 +2,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 from datetime import datetime
 import pandas as pd
-from tradegym.engine.core import TObject, PrivateAttr, computed_property
+from tradegym.engine.core import TObject, Field, writable
 from .quote import Quote
 
 
@@ -12,74 +12,64 @@ __all__ = ["KLine"]
 
 class KLine(TObject):
 
-    _code: str = PrivateAttr()
-    _timestep: float = PrivateAttr()
-    _cusor: int = PrivateAttr(0)
+    code: str = Field()
+    timestep: float = Field()
+    cursor: int = Field(0)
 
-    _dataframe: pd.DataFrame = PrivateAttr()
+    dataframe: pd.DataFrame = Field(None, exclude=True)
 
-    
-    @computed_property
-    def code(self) -> str:
-        return self._code
-    
-    @computed_property
-    def timestep(self) -> float:
-        return self._timestep
-
-    @computed_property
-    def cursor(self) -> int:
-        return self._cusor
-    
     @property
     def dataframe(self) -> pd.DataFrame:
-        return self._dataframe
+        return self.dataframe
 
     @property
     def columns(self) -> Sequence[str]:
-        return self._dataframe.columns
+        return self.dataframe.columns
 
     @property
     def quote(self) -> Quote:
-        return Quote.from_dict(self._dataframe.iloc[self._cusor].to_dict())
+        return Quote.deserialize(self.dataframe.iloc[self.cursor].to_dict())
     
     @property
     def terminated(self) -> bool:
-        return self._cusor + 1 >= len(self._dataframe)
+        return self.cursor + 1 >= len(self.dataframe)
     
     def __len__(self) -> int:
-        return len(self._dataframe)
+        return len(self.dataframe)
     
     def __getitem__(self, index: int) -> pd.Series:
-        return self._dataframe.iloc[index]
-    
+        return self.dataframe.iloc[index]
+
+    @writable    
     def setup(self, dataframe: pd.DataFrame):
-        self._dataframe = self.normalize_dataframe(dataframe)
-        td = self._dataframe.iloc[1]["datetime"] - self._dataframe.iloc[0]["datetime"]
-        assert td.total_seconds() == self._timestep, ValueError(f"timestep mismatch for code '{self._code}', expect {self._timestep}, got {td.total_seconds()}")
+        self.dataframe = self.normalize_dataframe(dataframe)
+        td = self.dataframe.iloc[1]["datetime"] - self.dataframe.iloc[0]["datetime"]
+        assert td.total_seconds() == self.timestep, ValueError(f"timestep mismatch for code '{self.code}', expect {self.timestep}, got {td.total_seconds()}")
     
+    @writable
     def reset(self, datetime: Union[datetime, str, pd.Timestamp]):
         ctime = pd.to_datetime(datetime)
-        exact_match = self._dataframe.index[self._dataframe['datetime'] == ctime]
+        exact_match = self.dataframe.index[self.dataframe['datetime'] == ctime]
         if len(exact_match) > 0:
-            self._cusor = exact_match[0]
+            self.cursor = exact_match[0]
             return
-        mask = (self._dataframe['datetime'] < ctime)
+        mask = (self.dataframe['datetime'] < ctime)
         if not mask.any():
-            raise ValueError(f"datetime '{datetime}' is out of range in kline, code: '{self._code}' timestep: '{self._timestep}'")
-        self._cusor = self._dataframe.loc[mask, 'datetime'].idxmax()
+            raise ValueError(f"datetime '{datetime}' is out of range in kline, code: '{self.code}' timestep: '{self.timestep}'")
+        self.cursor = self.dataframe.loc[mask, 'datetime'].idxmax()
 
+    @writable
     def tick(self, datetime: Union[datetime, str, pd.Timestamp]):
         ctime = pd.to_datetime(datetime)
-        if ctime < self._dataframe.iloc[self._cusor]['datetime']:
-            raise ValueError(f"Try to locate a previous datetime '{ctime}', current datetime '{self._dataframe[self._cusor]['datetime']}'")
-        elif ctime == self._dataframe.iloc[self._cusor]['datetime']:
+        if ctime < self.dataframe.iloc[self.cursor]['datetime']:
+            raise ValueError(f"Try to locate a previous datetime '{ctime}', current datetime '{self.dataframe[self.cursor]['datetime']}'")
+        elif ctime == self.dataframe.iloc[self.cursor]['datetime']:
             return
         else:
-            if self._cusor + 1 >= len(self._dataframe):
+            if self.cursor + 1 >= len(self.dataframe):
                 return
-            if ctime == self._dataframe.iloc[self._cusor+1]['datetime']:
-                self._cusor += 1
+            if ctime == self.dataframe.iloc[self.cursor+1]['datetime']:
+                self.cursor += 1
 
     @staticmethod
     def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:

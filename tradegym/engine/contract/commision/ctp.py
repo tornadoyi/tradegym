@@ -1,5 +1,5 @@
 from typing import ClassVar, Optional
-from tradegym.engine.core import PrivateAttr, computed_property
+from tradegym.engine.core import Field
 from tradegym.engine.contract.contract import Contract
 from .commission import Commission, CommisionInfo
 
@@ -16,67 +16,18 @@ class CTPCommission(Commission):
 
     Name: ClassVar[str] = "ctp_commission"
 
-    _ex_open_fee: float = PrivateAttr(0)
-    _ex_open_fee_rate: float = PrivateAttr(0)
-    _ex_close_fee : float = PrivateAttr(0)
-    _ex_close_fee_adv : float = PrivateAttr(0)
-    _ex_close_fee_rate: float = PrivateAttr(0)
-    _ex_close_fee_rate_adv: float = PrivateAttr(0)
-    _bk_open_fee: float = PrivateAttr(0)
-    _bk_open_fee_rate: float = PrivateAttr(0)
-    _bk_close_fee : float = PrivateAttr(0)
-    _bk_close_fee_adv : float = PrivateAttr(0)
-    _bk_close_fee_rate: float = PrivateAttr(0)
-    _bk_close_fee_rate_adv: float = PrivateAttr(0)
-
-
-    @computed_property
-    def ex_open_fee(self) -> float:
-        return self._ex_open_fee
-    
-    @computed_property
-    def ex_open_fee_rate(self) -> float:
-        return self._ex_open_fee_rate
-
-    @computed_property
-    def ex_close_fee(self) -> float:
-        return self._ex_close_fee
-
-    @computed_property
-    def ex_close_fee_adv(self) -> float:
-        return self._ex_close_fee_adv
-
-    @computed_property
-    def ex_close_fee_rate(self) -> float:
-        return self._ex_close_fee_rate
-
-    @computed_property
-    def ex_close_fee_rate_adv(self) -> float:
-        return self._ex_close_fee_rate_adv
-
-    @computed_property
-    def bk_open_fee(self) -> float:
-        return self._bk_open_fee
-
-    @computed_property
-    def bk_open_fee_rate(self) -> float:
-        return self._bk_open_fee_rate
-
-    @computed_property
-    def bk_close_fee(self) -> float:
-        return self._bk_close_fee
-
-    @computed_property
-    def bk_close_fee_adv(self) -> float:
-        return self._bk_close_fee_adv
-
-    @computed_property
-    def bk_close_fee_rate(self) -> float:
-        return self._bk_close_fee_rate
-
-    @computed_property
-    def bk_close_fee_rate_adv(self) -> float:
-        return self._bk_close_fee_rate_adv
+    ex_open_fee: float = Field(0)
+    ex_open_fee_rate: float = Field(0)
+    ex_close_fee : float = Field(0)
+    ex_close_fee_adv : float = Field(0)
+    ex_close_fee_rate: float = Field(0)
+    ex_close_fee_rate_adv: float = Field(0)
+    bk_open_fee: float = Field(0)
+    bk_open_fee_rate: float = Field(0)
+    bk_close_fee : float = Field(0)
+    bk_close_fee_adv : float = Field(0)
+    bk_close_fee_rate: float = Field(0)
+    bk_close_fee_rate_adv: float = Field(0)
 
 
     def __call__(
@@ -86,6 +37,7 @@ class CTPCommission(Commission):
         price: float,
         volume: int,
         type: str,        # open/close
+        side: str,
         position: Optional["Position"] = None,
     ) -> CommisionInfo:
         # notional
@@ -120,5 +72,3 @@ class CTPCommission(Commission):
             broker_fee=broker_fee,
         )
     
-
-Commission.register(CTPCommission)

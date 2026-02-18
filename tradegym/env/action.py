@@ -1,39 +1,35 @@
 from typing import Optional, Dict, Type, List, ClassVar
-import sys
-from abc import ABC, abstractmethod
 import gymnasium as gym
-from tradegym.engine import TObject, TradeEngine, computed_property, PrivateAttr, TradeInfo
+from tradegym.engine import TObject, TradeEngine, Field, TradeInfo
 
 
 __all__ = ['Action', 'ActionSpace', 'ActionResult', 'OpenAction', 'CloseAction', 'NoOpAction']
 
 
 class ActionResult(TObject):
-    _error: Optional[str] = PrivateAttr(None)
-    _trade_info: Optional[TradeInfo] = PrivateAttr(None)
+    error: Optional[str] = Field(None)
+    trade_info: Optional[TradeInfo] = Field(None)
 
     @property
     def success(self) -> bool:
         return self._error is None
-
-    @computed_property
-    def error(self) -> Optional[str]:
-        return self._error
-    
-    @computed_property
-    def trade_info(self) -> Optional[TradeInfo]:
-        return self._trade_info
 
 
 
 class Action(TObject):
     __ACTIONS__: Dict[str, Type["Action"]] = {}
 
-    Name: ClassVar[str]
+    Name: ClassVar[str] = None
 
     @property
     def name(self) -> str:
         return self.Name
+    
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.Name is None:
+            return
+        Action.__ACTIONS__[cls.Name] = cls
 
     def __call__(self, engine: TradeEngine) -> ActionResult:
         try:
@@ -47,39 +43,25 @@ class Action(TObject):
         pass
 
     @staticmethod
-    def register(atype: Type["Action"]):
-        if atype.Name in Action.__ACTIONS__:
-            print(f"WARNNING action '{atype.Name}' has been overrided by '{atype}'", file=sys.stderr)
-        Action.__ACTIONS__[atype.Name] = atype
-
-    @staticmethod
     def list() -> List[str]:
         return list(Action.__ACTIONS__.values())
+    
+    @staticmethod
+    def make(name: str, **kwargs):
+        act_cls = Action.__ACTIONS__[name]
+        if act_cls is None:
+            raise ValueError(f"action '{name}' not found")
+        return act_cls.deserialize(kwargs)
 
 
 
 class TradeAction(Action):
-    _code: str = PrivateAttr()
-    _side: str = PrivateAttr()
-    _price: float = PrivateAttr()
-    _volume: Optional[int] = PrivateAttr(None)
+    code: str = Field()
+    side: str = Field()
+    price: float = Field()
+    volume: Optional[int] = Field(None)
+    
 
-    @computed_property
-    def code(self) -> str:
-        return self._code
-    
-    @computed_property
-    def side(self) -> str:
-        return self._side
-    
-    @computed_property
-    def price(self) -> float:
-        return self._price
-    
-    @computed_property
-    def volume(self) -> Optional[int]:
-        return self._volume
-    
 
 class OpenAction(TradeAction):
     Name: ClassVar[str] = 'open'
@@ -104,11 +86,6 @@ class NoOpAction(Action):
 
     def execute(self, engine: TradeEngine) -> Optional[TradeInfo]:
         return None
-
-
-Action.register(NoOpAction)
-Action.register(OpenAction)
-Action.register(CloseAction)
 
 
 

@@ -21,7 +21,6 @@ class TestKline(unittest.TestCase):
 
         # reset
         env.reset(options={"dataframes": [df]})
-
         for i in range(len(df)-1):
             self.assertEqual(env.engine.kline.klines[0].cursor, i)
             obs, _, terminated, _, _ = env.step({"name": "noop"})
@@ -85,7 +84,7 @@ class TestKline(unittest.TestCase):
 
     def make_env(self, timesteps: Sequence[float]):
         return TradeEnv(
-            account=Account(wallet=Wallet(10000)),
+            account=Account(wallet=Wallet(init_cash=10000)),
             contract=ContractManager([utils.CONTRACRS["rb2605"]]),
             kline=KLineManager([KLine(code="rb2605", timestep=ts) for ts in timesteps]),
             trader=CTPTrader(last_price_key="last_price"),

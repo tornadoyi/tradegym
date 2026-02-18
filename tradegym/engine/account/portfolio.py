@@ -1,5 +1,5 @@
 from typing import Optional, Sequence, Union, List
-from tradegym.engine.core import TObject, PrivateAttr, computed_property
+from tradegym.engine.core import TObject, Field, writable
 from .position import Position
 
 
@@ -8,42 +8,31 @@ __all__ = ["Portfolio"]
 
 class Portfolio(TObject):
 
-    _positions: List[Position] = PrivateAttr(default_factory=list)
-    _closed_positions: List[Position] = PrivateAttr()
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._closed_positions = [p for p in self._positions if p.current_volume == 0]
-
-    @computed_property
-    def positions(self) -> Sequence[Position]:
-        return self._positions
+    positions: List[Position] = Field(default_factory=list)
 
     @property
-    def opened_positions(self) -> Sequence[Position]:
-        return [p for p in self._positions if p.opened]
+    def opened_positions(self) -> List[Position]:
+        return [p for p in self.positions if p.opened]
     
     @property
-    def closed_positions(self) -> Sequence[Position]:
-        return [p for p in self._positions if p.closed]
+    def closed_positions(self) -> List[Position]:
+        return [p for p in self.positions if p.closed]
     
+    @writable
     def reset(self):
-        self._positions = []
-        self._closed_positions = []
+        self.positions = []
 
-    def open(self, *args, **kwargs) -> str:
-        position = Position(*args, **kwargs)
-        self._positions.append(position)
+    @writable
+    def open(self, **kwargs) -> str:
+        position = Position(**kwargs)
+        self.positions.append(position)
         return position.id
 
     def close(self, id: str, *args, **kwargs) -> str:
-        idx = next((i for i, pos in enumerate(self._positions) if pos.id == id), -1)
+        idx = next((i for i, pos in enumerate(self.positions) if pos.id == id), -1)
         assert idx < 0, f"position '{id}' not found"
-        pos = self._positions[idx]
+        pos = self.positions[idx]
         close = pos.close(*args, **kwargs)
-        if pos.closed:
-            self._positions.pop(idx)
-            self._closed_positions.append(pos)
         return close.id
 
     def query(
@@ -74,7 +63,7 @@ class Portfolio(TObject):
             statuses = {status} if isinstance(status, str) else set(status)
 
         positions = []
-        for pos in self._positions:
+        for pos in self.positions:
             if len(ids) > 0 and pos.id not in ids:
                 continue
             if len(codes) > 0 and pos.code not in codes:

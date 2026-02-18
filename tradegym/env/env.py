@@ -1,7 +1,7 @@
-from typing import Optional, Dict, Any, Tuple, Union
+from typing import Optional, Dict, Any, Tuple, Union, ClassVar
 import gymnasium as gym
-from gymnasium.envs.registration import register
-from tradegym.engine import TradeEngine
+from gymnasium.envs.registration import register, EnvSpec
+from tradegym.engine import TradeEngine, TObject, Field
 from .action import Action, ActionSpace, ActionResult
 from .obs import ObservationSpace, Observation
 
@@ -10,20 +10,18 @@ __all__ = ['TradeEnv']
 
 
 
-class TradeEnv(gym.Env):
+class TradeEnv(TObject, gym.Env):
 
-    observation_space = ObservationSpace()
-    action_space = ActionSpace()
+    observation_space: ClassVar[ObservationSpace] = ObservationSpace()
+    action_space: ClassVar[ActionSpace] = ActionSpace()
+    spec: ClassVar[Optional[EnvSpec]] = None
+
+    engine: TradeEngine = Field()
 
     def __init__(self, engine: Optional[TradeEngine] = None, **kwargs):
-        super().__init__()
-        if engine is not None:
-            assert len(kwargs) == 0, f"Can not specify both engine and arguments of engine"
-        self._engine = TradeEngine(**kwargs) if engine is None else engine
-
-    @property
-    def engine(self) -> TradeEngine:
-        return self._engine
+        engine = TradeEngine(**kwargs) if engine is None else engine
+        TObject.__init__(self, engine=engine)
+        gym.Env.__init__(self)
     
     @property
     def terminated(self) -> bool:
@@ -48,7 +46,7 @@ class TradeEnv(gym.Env):
 
         # wrap action
         if isinstance(action, dict):
-            action = Action.from_dict(action)
+            action = Action.make(**action)
 
         # run action
         result: ActionResult = action(self.engine)
@@ -57,18 +55,9 @@ class TradeEnv(gym.Env):
         self.engine.tick()
 
         # return
-        observation = Observation.from_dict(result.to_dict())
+        observation = Observation.deserialize(result.serialize())
         return observation, 0.0, self.engine.terminated, False, {}
 
-    def copy(self) -> "TradeEnv":
-        return type(self).from_dict(self.to_dict())
-
-    def to_dict(self) -> Dict:
-        return {'engine': self.engine.to_dict()}
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> "TradeEnv":
-        return cls(engine=TradeEngine.from_dict(data['engine']))
 
     @staticmethod
     def make(name="TradeEnv-v0", **kwargs) -> "TradeEnv":

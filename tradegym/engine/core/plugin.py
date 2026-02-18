@@ -1,5 +1,5 @@
-from typing import Optional, Sequence, Dict, Type, Union, ClassVar, List, TypeVar
-from .object import TObject, computed_property, PrivateAttr
+from typing import Optional, Sequence, Dict, Type, Union, ClassVar, List, TypeVar, Any
+from .object import TObject, computed_field, Field, field_validator, writable
 
 
 __all__ = ["Plugin", "PluginManager"]
@@ -13,7 +13,8 @@ class Plugin(TObject):
     Name: ClassVar[str]
     Depends: ClassVar[Sequence[str]] = []
 
-    @computed_property
+    @computed_field
+    @property
     def name(self) -> str:
         return self.Name
     
@@ -28,6 +29,10 @@ class Plugin(TObject):
     @property
     def installed(self) -> bool:
         return hasattr(self, "__plugin_manager__")
+    
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Plugin.__PLUGINS__[cls.Name] = cls
 
     def setup(self, manager: "PluginManager"):
         setattr(self, "__plugin_manager__", manager)
@@ -35,35 +40,29 @@ class Plugin(TObject):
     def reset(self) -> None: pass
     
     @staticmethod
-    def register(type: Type["Plugin"]):
-        assert type.Name is not None, ValueError(f"Register plugin type '{type}' have no name field")
-        if type.Name in Plugin.__PLUGINS__:
-            print(f"override register plugin type '{type.name}'")
-        Plugin.__PLUGINS__[type.Name] = type
-
-    @staticmethod
     def make(name: str, **kwargs) -> Optional["Plugin"]:
         cls = Plugin.__PLUGINS__.get(name, None)
         assert cls is not None, ValueError(f"Plugin type '{name}' is not found")
-        return cls.from_dict(data=kwargs)
+        return cls.deserialize(data=kwargs)
 
 
 PluginType = TypeVar("T", bound=Plugin)
 
 class PluginManager(TObject):
 
-    _plugins: List[PluginType] = PrivateAttr(default_factory=list)
-    _plugin_map: Dict[str, PluginType] = PrivateAttr(default_factory=dict)
+    plugins: List[PluginType] = Field(default_factory=list)
+    plugin_map: Dict[str, PluginType] = Field(default_factory=dict, exclude=True)
 
     def __init__(self, plugins: Optional[Sequence[Union[Plugin, Dict]]] = None):
         super().__init__()
-        plugins = [plg if isinstance(plg, Plugin) else Plugin.make(**plg) for plg in (plugins or [])]
         self.add_plugins(plugins)
 
-    @computed_property
-    def plugins(self) -> List[PluginType]:
-        return self._plugins
-    
+    @field_validator('plugins', mode='plain')
+    @classmethod
+    def _deserialize_plugins(cls, v: Any):
+        return [plg if isinstance(plg, Plugin) else Plugin.make(**plg) for plg in v]
+        
+
     def get_or_create_plugin(self, name: str) -> Plugin:
         plugin = self.find_plugin(name)
         return plugin if plugin is not None else self.add_plugin(name)
@@ -74,14 +73,16 @@ class PluginManager(TObject):
         return plugin
 
     def find_plugin(self, name: str) -> Optional[Plugin]:
-        return self._plugin_map.get(name, None)
+        return self.plugin_map.get(name, None)
 
+    @writable
     def add_plugin(self, plugin: Union[str, Plugin]) -> Plugin:
         return self.add_plugins([plugin])[0]
 
     def has_plugin(self, name: str) -> bool:
         return name in self.plugins
 
+    @writable
     def add_plugins(self, plugins: Sequence[Union[str, Plugin]]) -> Sequence[Plugin]:
         # initialize plguin map
         plg_map: Dict[str, Plugin] = {}
@@ -99,7 +100,7 @@ class PluginManager(TObject):
 
             # add dependencies
             for dp_name in ptype.Depends:
-                if dp_name in self._plugin_map:
+                if dp_name in self.plugin_map:
                     continue
                 
                 # circular check
@@ -111,16 +112,16 @@ class PluginManager(TObject):
                 dfs_add(dp_name)
 
             # add plugin
-            assert name not in self._plugin_map, ValueError(f"Plugin '{name}' already exists")
+            assert name not in self.plugin_map, ValueError(f"Plugin '{name}' already exists")
             plugin = plg_map.get(name, None)
             plugin = plugin if plugin is not None else Plugin.make(name)
-            self._plugins.append(plugin)
-            self._plugin_map[name] = plugin
+            self.plugins.append(plugin)
+            self.plugin_map[name] = plugin
             plugin.setup(self)
 
         # add plugins
         for name in plg_map.keys():
-            if name in self._plugin_map:
+            if name in self.plugin_map:
                 continue
             dfs_add(name)
 

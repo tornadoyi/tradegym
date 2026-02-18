@@ -1,67 +1,52 @@
 from typing import Optional, Dict
-from tradegym.engine.core import TObject, PrivateAttr, computed_property
+from tradegym.engine.core import TObject, Field, writable
 
 
 __all__ = ["Wallet"]
 
 
 class Wallet(TObject):
-    _init_cash: float = PrivateAttr()
-    _cash: float = PrivateAttr(None)
-    _currency: str = PrivateAttr("CNY")
-    _margin: float = PrivateAttr(0.0)
-    _unrealized_pnls: Dict[str, float] = PrivateAttr(default_factory=dict)
+    init_cash: float = Field()
+    cash: float = Field(None)
+    currency: str = Field("CNY")
+    margin: float = Field(0.0)
+    unrealized_pnls: Dict[str, float] = Field(default_factory=dict)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self._cash is None:
-            self._cash = self._init_cash
+        if self.cash is None:
+            with self.writable():
+                self.cash = self.init_cash
 
-    @computed_property
-    def init_cash(self) -> float:
-        return self._init_cash
-
-    @computed_property
-    def cash(self) -> float:
-        return self._cash
-    
-    @computed_property
-    def currency(self) -> Optional[str]:
-        return self._currency
-    
-    @computed_property
-    def margin(self) -> float:
-        return self._margin
-    
-    @computed_property
-    def unrealized_pnls(self) -> Dict[str, float]:
-        return self._unrealized_pnls
-    
     @property
     def unrealized_pnl(self) -> float:
-        return sum(self._unrealized_pnls.values())
+        return sum(self.unrealized_pnls.values())
     
     @property
     def available_cash(self) -> float:
         return self.cash + self.unrealized_pnl
     
+    @writable
     def reset(self):
-        self._cash = self._init_cash
-        self._margin = 0.0
-        self._unrealized_pnls = {}
+        self.cash = self.init_cash
+        self.margin = 0.0
+        self.unrealized_pnls = {}
 
     def has_enough_available_cash(self, amount: float) -> bool:
         return self.cash + self.unrealized_pnl >= amount
     
+    @writable
     def allocate_margin(self, margin: float, commision: float):
-        self._cash -= (margin + commision)
-        self._margin += margin
+        self.cash -= (margin + commision)
+        self.margin += margin
 
+    @writable
     def release_margin(self, margin: float, pnl: float, commision: float):
-        self._cash += (margin + pnl - commision)
-        self._margin -= margin
+        self.cash += (margin + pnl - commision)
+        self.margin -= margin
 
+    @writable
     def update_unrealized_pnl(self, code: str, pnl: float):
-        self._unrealized_pnls[code] = pnl
+        self.unrealized_pnls[code] = pnl
         if pnl == 0:
-            del self._unrealized_pnls[code]
+            del self.unrealized_pnls[code]
