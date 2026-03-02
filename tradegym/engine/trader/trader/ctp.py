@@ -21,7 +21,7 @@ class CTPTrader(Trader):
         if not ((price >= slippage_price) if side == "long" else (price <= slippage_price)):
             return TradeInfo(
                 success=False, 
-                error=f"Current open price '{price}' is outside the allowed slippage price '{slippage_price}'"
+                error=f"Current open price '{price}' is outside the allowed slippage price '{slippage_price}'",
                 **trade_args
             )
         

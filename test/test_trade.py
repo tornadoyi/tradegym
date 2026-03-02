@@ -15,14 +15,24 @@ import utils
 
 class TestTrade(unittest.TestCase):
     def test_trade_open_slippage(self):
-        env = self.make_env(timesteps=[0.5])
+        # load data
         df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        tick_size = utils.CONTRACRS["rb2605"].tick_size
 
-        # reset
+        # slippage = 0
+        env = self.make_env(timesteps=[0.5])
         env.reset(options={"dataframes": [df]})
         quote = env.engine.kline.get_kline("rb2605").quote
         obs, _, terminated, _, _ = env.step({"name": "open", "code": "rb2605", "side": "long", "price": quote.last_price, "volume": 1})
-        breakpoint()
+
+        # slippage = 1
+        env = self.make_env(timesteps=[0.5], slippage=1)
+        env.reset(options={"dataframes": [df]})
+        quote = env.engine.kline.get_kline("rb2605").quote
+        obs, _, terminated, _, _ = env.step({"name": "open", "code": "rb2605", "side": "long", "price": quote.last_price, "volume": 1})
+        self.assertFalse(obs.success, "slippage price is not correct")
+        obs, _, terminated, _, _ = env.step({"name": "open", "code": "rb2605", "side": "long", "price": quote.last_price + tick_size, "volume": 1})
+        self.assertTrue(obs.success, "slippage price is not correct")
             
     
     def make_env(

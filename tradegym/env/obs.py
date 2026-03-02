@@ -7,12 +7,15 @@ __all__ = ['Observation', 'ObservationSpace']
 
 
 class Observation(TObject):
-    error: Optional[str] = Field(None)
     trade_info: Optional[TradeInfo] = Field(None)
 
     @property
     def success(self) -> bool:
-        return self.trade_info.success
+        return True if self.trade_info is None else self.trade_info.success
+
+    @property
+    def error(self) -> Optional[str]:
+        return None if self.trade_info is None else self.trade_info.error
 
 
 
