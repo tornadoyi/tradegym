@@ -35,10 +35,6 @@ class Position(TObject):
         return self.status == "closed"
     
     @property
-    def closes(self) -> Sequence["Close"]:
-        return self.closes
-    
-    @property
     def closed_commission(self) -> float:
         return sum(close.commission for close in self.closes)
 

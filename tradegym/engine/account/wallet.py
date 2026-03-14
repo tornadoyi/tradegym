@@ -21,6 +21,10 @@ class Wallet(TObject):
     @property
     def unrealized_pnl(self) -> float:
         return sum(self.unrealized_pnls.values())
+
+    @property
+    def unrealized_loss(self) -> float:
+        return sum(pnl for pnl in self.unrealized_pnls.values() if pnl < 0)
     
     @property
     def available_cash(self) -> float:
@@ -33,7 +37,7 @@ class Wallet(TObject):
         self.unrealized_pnls = {}
 
     def has_enough_available_cash(self, amount: float) -> bool:
-        return self.cash + self.unrealized_pnl >= amount
+        return self.cash + self.unrealized_loss >= amount
     
     @writable
     def allocate_margin(self, margin: float, commision: float):
