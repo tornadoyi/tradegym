@@ -1,6 +1,6 @@
 from typing import Optional, Sequence
 import pandas as pd
-from .core import PluginManager, Plugin
+from .core import PluginManager, Plugin, Formula
 from .account import Account
 from .contract import ContractManager
 from .kline import KLineManager
@@ -67,9 +67,23 @@ class TradeEngine(PluginManager):
     def tick(self):
         self.clock.tick()
         self.kline.tick()
+        self.update_unrealized_pnls()
 
     def open(self, code: str, side: str, price: float, volume: int) -> TradeInfo:
         return self.trader.open(code, side, price, volume)
 
     def close(self, code: str, side: str, price: float, volume: Optional[int] = None) -> TradeInfo:
         return self.trader.close(code, side, price, volume)
+
+    def update_unrealized_pnls(self):
+        # calculate unrealized pnls
+        unrealized_pnls = {}
+        for position in self.account.portfolio.opened_positions:
+            contract = self.contract.get_contract(position.code)
+            last_price = self.kline.get_kline(position.code).quote.last_price
+            unrealized_pnls.setdefault(position.code, 0.0)
+            unrealized_pnls[position.code] += Formula.position_unrealized_pnl(position.price, position.volume, position.side, contract.multiplier, last_price)
+        
+        # update
+        for code, pnl in unrealized_pnls.items():
+            self.account.wallet.update_unrealized_pnl(code, pnl)
