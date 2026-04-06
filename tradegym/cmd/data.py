@@ -12,7 +12,7 @@ def add_parser(sparser: argparse._SubParsersAction):
     # publish
     parser = sparser.add_parser('publish', help='publish csv to traning data')
     parser.set_defaults(func=async_publush)
-    parser.add_argument('-i', '--input', type=str, required=True, help='input csv path')
+    parser.add_argument('input', type=str, help='input csv path')
     parser.add_argument('-o', '--output', type=str, required=True, help='output training data path')
     parser.add_argument('--tick', type=float, required=True, help='tick (0.5/60/3600)')
 
@@ -31,7 +31,8 @@ def add_parser(sparser: argparse._SubParsersAction):
     # show
     parser = sparser.add_parser('show', help='show metadata of published data')
     parser.set_defaults(func=async_show)
-    parser.add_argument('-i', '--input', type=str, required=True, help='input data path')
+    parser.add_argument('input', type=str, help='input data path')
+    parser.add_argument('-i', '--index', type=int, default=None, help='index of chunk')
 
     # export
     parser = sparser.add_parser('export', help='export dataframe from published data')
@@ -58,7 +59,7 @@ async def async_publush(args):
 
 
 async def async_show(args):
-    Data.show(args.input)
+    Data.show(args.input, args.index)
 
 
 async def async_export(args):

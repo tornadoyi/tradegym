@@ -88,10 +88,18 @@ class Data(object):
             })
             store.root._v_attrs.config = config
 
+        logging.info(f"Published to {output_path}")
+
     
     @staticmethod
-    def show(input_path: str) -> None:
+    def show(input_path: str, index: Optional[int] = None) -> None:
         with pd.HDFStore(input_path, 'r') as store:
-            config = getattr(store.root._v_attrs, "config", {})
+            if index is None:
+                config = getattr(store.root._v_attrs, "config", {})
+                logging.info("\n" + yaml.dump(config, sort_keys=False))
+            else:
+                chunk_name = f'chunk/df_{index}'
+                metadata = store.get_storer(chunk_name).attrs.metadata
+                logging.info("\n" + yaml.dump(metadata, sort_keys=False))
+
             
-            logging.info("\n" + yaml.dump(config, sort_keys=False))
