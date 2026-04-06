@@ -1,5 +1,5 @@
 from typing import Optional, Sequence, Dict, Type, Union, ClassVar, List, TypeVar, Any
-from .object import TObject, computed_field, Field, field_validator, writable
+from tradegym.core import TObject, computed_field, Field, field_validator, writable
 
 
 __all__ = ["Plugin", "PluginManager"]

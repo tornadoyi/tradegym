@@ -1,3 +1,3 @@
 from .formula import *
-from .object import *
 from .plugin import *
+from tradegym.core.object import *

@@ -1,7 +1,7 @@
 import sys
 import asyncio
 import argparse
-from mha import cmd
+from tradegym import cmd
 
 
 def parse_args():

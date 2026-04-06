@@ -1,8 +1,10 @@
 from typing import Optional
+import yaml
 from datetime import datetime
 import os
 import glob
 import pandas as pd
+from tradegym.core import logging
 from .etl import ETL
 
 
@@ -37,33 +39,38 @@ class Data(object):
     
         # load input files
         input_files = [os.path.abspath(path) for path in glob.glob(input_path)]
+        logging.info(f"Loaded {len(input_files)} files from {input_path}")
         df = pd.concat([
             pd.read_csv(file_path)
             for file_path in input_files
         ])
+        logging.info(f"Loaded {len(df)} rows from {len(input_files)} files")
 
         # segment
         if segment:
             dfs = ETL.segment(df, tick, num_gap_ticks, min_segment, dt_col)
         else:
             dfs = [df]
+        logging.info(f"Segmented {len(dfs)} chunks")
 
         # padding
         if padding:
             dfs = ETL.paddings(dfs, tick, dt_col, num_workers)
+        logging.info(f"Padded {len(dfs)} chunks")
 
         # save output file
         mode = "a" if os.path.exists(output_path) else "w"
         with pd.HDFStore(output_path, mode=mode) as store:
             # load metadata
-            config = store.root._v_attrs.config or {}
-            num_tick_chunks = config.get(f'num_chunk_{tick}', 0)
+            config = getattr(store.root._v_attrs, "config", {})
+            num_chunks = config.get(f'num_chunks', 0)
 
             # save chunks
             for i, df in enumerate(dfs):
-                chunk_name = f'chunk/{tick}/{num_tick_chunks + i}'
+                chunk_name = f'chunk/df_{num_chunks + i}'
                 store.put(chunk_name, df, format='table', complib=complib, complevel=complevel)
                 store.get_storer(chunk_name).attrs.metadata = {
+                    'tick': tick,
                     'start_datetime': df[dt_col].iloc[0].strftime('%Y-%m-%d %H:%M:%S'),
                     'end_datetime': df[dt_col].iloc[-1].strftime('%Y-%m-%d %H:%M:%S'),
                     'size': len(df),
@@ -72,8 +79,7 @@ class Data(object):
                 }
 
             # update metadata
-            config[f'num_chunk_{tick}'] = num_tick_chunks + len(dfs)
-            config["num_chunks"] = sum([v for k, v in config.items() if k.startswith("num_chunk_")])
+            config["num_chunks"] = num_chunks + len(dfs)
             config.setdefault("logs", [])
             config["logs"].append({
                 "datetime": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -81,3 +87,11 @@ class Data(object):
                 "num_chunks": len(dfs),
             })
             store.root._v_attrs.config = config
+
+    
+    @staticmethod
+    def show(input_path: str) -> None:
+        with pd.HDFStore(input_path, 'r') as store:
+            config = getattr(store.root._v_attrs, "config", {})
+            
+            logging.info("\n" + yaml.dump(config, sort_keys=False))

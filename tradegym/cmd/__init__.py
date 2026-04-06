@@ -1,5 +1,7 @@
+from . import data
 
 __CMDS__ = [
+    data
 ]
 
 

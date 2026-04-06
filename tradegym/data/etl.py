@@ -6,7 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 
 
-__all__ = ['Data']
+__all__ = ['ETL']
 
 
 class ETL(object):

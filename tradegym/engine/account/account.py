@@ -1,5 +1,5 @@
 from typing import Optional, ClassVar
-from tradegym.engine.core import Plugin, Field, writable
+from tradegym.engine.core import Plugin, Field
 from .portfolio import Portfolio
 from .wallet import Wallet
 
