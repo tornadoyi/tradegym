@@ -36,7 +36,7 @@ class Data(object):
         complib: str = 'blosc',
         complevel: int = 9,
     ) -> None:
-    
+
         # load input files
         input_files = [os.path.abspath(path) for path in glob.glob(input_path)]
         logging.info(f"Loaded {len(input_files)} files from {input_path}")
@@ -45,6 +45,15 @@ class Data(object):
             for file_path in input_files
         ])
         logging.info(f"Loaded {len(df)} rows from {len(input_files)} files")
+
+        # normalize columns
+        df = ETL.normalize_columns(df)
+        logging.info(f"Normalized columns: {df.columns}")
+
+        # drop nan
+        df_dropped = df.dropna()
+        logging.info(f"Dropped {len(df) - len(df_dropped)} rows with nan")
+        df = df_dropped
 
         # segment
         if segment:
@@ -59,6 +68,7 @@ class Data(object):
         logging.info(f"Padded {len(dfs)} chunks")
 
         # save output file
+        output_path = os.path.abspath(output_path)
         mode = "a" if os.path.exists(output_path) else "w"
         with pd.HDFStore(output_path, mode=mode) as store:
             # load metadata
@@ -101,5 +111,22 @@ class Data(object):
                 chunk_name = f'chunk/df_{index}'
                 metadata = store.get_storer(chunk_name).attrs.metadata
                 logging.info("\n" + yaml.dump(metadata, sort_keys=False))
+
+    @staticmethod
+    def export(
+        input_path: str, 
+        index: int,
+        output_path: Optional[str] = None,
+    ) -> None:
+
+        if output_path is None:
+            output_path = f'chunk_{index}.csv'
+        output_path = os.path.abspath(output_path)
+
+        with pd.HDFStore(input_path, 'r') as store:
+            chunk_name = f'chunk/df_{index}'
+            df = store.get(chunk_name)
+            df.to_csv(output_path, index=False)
+        logging.info(f"Exported chunk {index} to {output_path}")
 
             

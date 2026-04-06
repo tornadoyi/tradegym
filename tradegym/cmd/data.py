@@ -37,9 +37,9 @@ def add_parser(sparser: argparse._SubParsersAction):
     # export
     parser = sparser.add_parser('export', help='export dataframe from published data')
     parser.set_defaults(func=async_export)
-    parser.add_argument('-i', '--input', type=str, required=True, help='input data path')
-    parser.add_argument('-o', '--output', type=str, required=True, help='output dataframe path')
-    parser.add_argument('-c', '--chunk', type=str, required=True, help='chunk name')
+    parser.add_argument('input', type=str, help='input data path')
+    parser.add_argument('-o', '--output', type=str, default=None, help='output dataframe csv path')
+    parser.add_argument('-i', '--index', type=int, default=None, help='index of chunk')
 
 
 async def async_publush(args):
@@ -63,4 +63,4 @@ async def async_show(args):
 
 
 async def async_export(args):
-    Data.export(args.input, args.output, args.chunk)
+    Data.export(args.input, args.index,args.output)

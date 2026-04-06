@@ -12,6 +12,12 @@ __all__ = ['ETL']
 class ETL(object):
 
     @staticmethod
+    def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+        df.columns = [col.rsplit('.', 1)[-1] for col in df.columns]
+        return df
+
+
+    @staticmethod
     def segment(
         df: pd.DataFrame,
         tick: float,
