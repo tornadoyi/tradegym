@@ -16,7 +16,11 @@ setup(
     python_requires='>=3.10',
     install_requires=[
         'gymnasium',
+        'colorlog',
+        'beautifultable',
         'pandas',
+        'tables',
+        'tqdm',
     ],
     entry_points={
 		'console_scripts': [
