@@ -1,9 +1,10 @@
 from concurrent.futures import as_completed
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from concurrent.futures import ProcessPoolExecutor
 import os
 import pandas as pd
 from tqdm import tqdm
+from datetime import datetime, timedelta
 
 
 __all__ = ['ETL']
@@ -72,8 +73,8 @@ class ETL(object):
         # padding
         full_range = pd.date_range(start=df[dt_col].iloc[0], end=df[dt_col].iloc[-1], freq=f'{tick}s')
         filled = pd.DataFrame({dt_col: full_range})
+        filled[dt_col] = filled[dt_col].apply(lambda x : x.to_pydatetime().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
         merged = filled.merge(df, on=dt_col, how='left')
-
         # add padding flag
         merged = merged.sort_values(dt_col).reset_index(drop=True)
         merged['padding'] = ~merged[dt_col].isin(df[dt_col])
@@ -83,3 +84,23 @@ class ETL(object):
             if col != dt_col and col != 'padding' and merged[col].isna().any():
                 merged[col] = merged[col].ffill()
         return merged
+
+
+    @staticmethod
+    def align_time(
+        df: pd.DataFrame,
+        tick: float,
+        dt_col: str = 'datetime'
+    ) -> pd.DataFrame:
+        df: pd.DataFrame = df.sort_values(dt_col).reset_index(drop=True)
+        full_range = pd.date_range(start=df[dt_col].iloc[0], end=df[dt_col].iloc[-1], freq=f'{tick}s')
+        for row in df.itertuples():
+            curr_time: datetime = datetime.strptime(row.datetime, "%Y-%m-%d %H:%M:%S.%f")
+            if curr_time.microsecond == 0 or curr_time.microsecond == 50000:
+                continue
+            idx: int = full_range.get_indexer([curr_time], method='backfill')[0]
+            close_time: datetime = full_range[idx]
+            df.at[row.Index, 'datetime'] = close_time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        df = df.drop_duplicates(subset='datetime', keep='last')
+        return df
+
