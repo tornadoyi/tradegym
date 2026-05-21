@@ -2,8 +2,10 @@ from typing import Sequence
 import unittest
 import os
 import sys
+import math
 from datetime import timedelta
 import pandas as pd
+import pandas_ta as ta
 from tradegym.env import TradeEnv
 from tradegym.engine import Account, Wallet, ContractManager, KLineManager, CTPTrader, KLine
 
@@ -90,6 +92,80 @@ class TestKline(unittest.TestCase):
             trader=CTPTrader(last_price_key="last_price"),
         )
     
+
+    def test_kline_macd(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.macd(high=df['highest'], low=df['lowest'], append=True)
+        self.assertTrue((df.loc[1198, 'MACD_12_26_9'] + 0.071703) < 0.001)
+
+
+    def test_kline_kdj(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.kdj(high=df['highest'], low=df['lowest'], append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'K_9_3'] - 18.348533) < 0.001)
+        self.assertTrue(math.fabs(df.loc[100, 'D_9_3'] - 18.104151) < 0.001)
+        self.assertTrue(math.fabs(df.loc[100, 'J_9_3'] - 18.837296) < 0.001)
+
+
+    def test_kline_atr(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.atr(high=df['highest'], low=df['lowest'], append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'ATRr_14'] - 38.0) < 0.001)
+
+
+    def test_kline_rsi(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.rsi(high=df['highest'], low=df['lowest'], append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'RSI_14'] - 54.720142) < 0.001)
+
+
+    def test_kline_boll(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.bbands(append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'BBL_5_2.0_2.0'] - 3293.0) < 0.001)
+
+
+    def test_kline_wr(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.willr(append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'WILLR_14'] + 81.578947) < 0.001)
+
+
+    def test_kline_sma(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.sma(append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'SMA_10'] - 3293.0) < 0.001)
+
+
+    def test_kline_ema(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.ema(append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'EMA_10'] - 3292.80163) < 0.001)
+
+
+    def test_kline_wma(self):
+        df = pd.read_csv(os.path.join(CUR_DIR, "data", "rb2605_0805_10m_tick.csv"))
+        self.assertEqual(len(df), 1200, f"{len(df)} != 1200")
+        df["close"] = df["last_price"]
+        df.ta.wma(append=True)
+        self.assertTrue(math.fabs(df.loc[100, 'WMA_10'] - 3293.0) < 0.001)
+
 
 if __name__ == '__main__':
     unittest.main()
